@@ -12,4 +12,10 @@ services:
       - PORT=8081
     volumes:
       - /home/ferreirase/Documents:/data
+    networks:
+      - dokploy-network
     restart: unless-stopped
+
+networks:
+  dokploy-network:
+    external: true
