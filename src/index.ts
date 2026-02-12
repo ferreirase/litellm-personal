@@ -49,7 +49,6 @@ function createMcpServer(projectPath: string) {
 
   const escapeCmd = (val: string) => `"${val.replace(/"/g, '\\"')}"`;
 
-  // Tool: Init Project
   server.registerTool(
     "init-project",
     { inputSchema: { projectName: z.string().optional().describe("The name of the project") } },
@@ -66,7 +65,6 @@ function createMcpServer(projectPath: string) {
     }
   );
 
-  // Tool: List Tasks
   server.registerTool(
     "list-tasks",
     {
@@ -92,7 +90,6 @@ function createMcpServer(projectPath: string) {
     }
   );
 
-  // Tool: View Task
   server.registerTool(
     "view-task",
     { inputSchema: { taskId: z.string().describe("Task ID") } },
@@ -108,7 +105,6 @@ function createMcpServer(projectPath: string) {
     }
   );
 
-  // Tool: Create Task
   server.registerTool(
     "create-task",
     {
@@ -142,7 +138,6 @@ function createMcpServer(projectPath: string) {
         if (args.dependencies) args.dependencies.forEach((d: string) => cmd += ` --dep ${escapeCmd(d)}`);
         if (args.parent_id) cmd += ` --parent ${escapeCmd(args.parent_id)}`;
         if (args.is_draft) cmd += ` --draft`;
-        
         const { stdout } = await execAsync(cmd, { cwd, timeout: 15000 });
         return { content: [{ type: "text", text: stdout || "Task created" }] };
       } catch (error: any) {
@@ -151,7 +146,6 @@ function createMcpServer(projectPath: string) {
     }
   );
 
-  // Tool: Edit Task
   server.registerTool(
     "edit-task",
     {
@@ -185,7 +179,6 @@ function createMcpServer(projectPath: string) {
         if (args.notes) cmd += ` --notes ${escapeCmd(args.notes)}`;
         if (args.dependencies) cmd += ` --dep ${escapeCmd(args.dependencies.join(","))}`;
         if (args.parent_id) cmd += ` --parent ${escapeCmd(args.parent_id)}`;
-        
         const { stdout } = await execAsync(cmd, { cwd, timeout: 15000 });
         return { content: [{ type: "text", text: stdout || "Task edited" }] };
       } catch (error: any) {
@@ -194,7 +187,6 @@ function createMcpServer(projectPath: string) {
     }
   );
 
-  // Tool: List Docs
   server.registerTool(
     "list-docs",
     { inputSchema: {} },
@@ -209,7 +201,6 @@ function createMcpServer(projectPath: string) {
     }
   );
 
-  // Tool: View Doc
   server.registerTool(
     "view-doc",
     { inputSchema: { docId: z.string().describe("Doc ID") } },
@@ -218,7 +209,6 @@ function createMcpServer(projectPath: string) {
       try {
         checkInit();
         const docsDir = join(cwd, 'backlog', 'docs');
-        if (!existsSync(docsDir)) return { content: [{ type: "text", text: "Docs directory not found." }], isError: true };
         const files = readdirSync(docsDir);
         const docFile = files.find(f => f.startsWith(`${docId} - `) || f === `${docId}.md`);
         if (!docFile) return { content: [{ type: "text", text: "Doc not found" }], isError: true };
@@ -290,6 +280,11 @@ app.get("/sse", async (req, res) => {
   }
   const session = mcpSessions.get(sessionId);
   if (!session) return res.status(400).json({ error: "Invalid session ID" });
+
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Content-Type', 'text/event-stream');
+  
   await session.transport.handleRequest(req, res);
 });
 
@@ -305,7 +300,10 @@ app.delete("/sse", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 8081;
-app.listen(PORT, () => {
+const httpServer = app.listen(PORT, () => {
   console.log(`🚀 Backlog MCP Server running at ${BASE_URL}`);
   console.log(`📂 Root Mapped: ${HOST_ROOT} -> ${CONTAINER_DATA}`);
 });
+
+httpServer.keepAliveTimeout = 120000; // 2 minutes
+httpServer.headersTimeout = 125000;
