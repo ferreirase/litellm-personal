@@ -1,32 +1,33 @@
-# Usa a imagem oficial do LiteLLM como base
+# Dockerfile
 FROM ghcr.io/berriai/litellm:main-latest
 
-# Muda para root para instalar dependências do sistema
 USER root
 
-# 1. Instala dependências básicas, Node.js 20, Git e ferramentas de build
+# 1. Instalação limpa de dependências e Node.js 20
 RUN apt-get update && \
-    apt-get install -y curl gnupg build-essential && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs git && \
+    apt-get install -y curl gnupg git build-essential && \
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
+    apt-get install -y nodejs && \
     apt-get clean
 
-# 2. Instala UV (gerenciador python rápido para o MCP serena)
-RUN pip install uv
+# 2. Instala UV (Python package manager)
+RUN pip install uv --break-system-packages
 
-# 3. Instala o backlog.md globalmente (para o comando 'backlog' funcionar)
-RUN npm install -g backlog.md
-
-# 4. Prepara diretórios de cache e permissões para o usuário 'litellm'
-# Isso evita erros de permissão ao rodar npx/uvx
+# 3. Cria diretórios e ajusta permissões ANTES de voltar para o usuário litellm
 RUN mkdir -p /home/litellm/.npm && \
     mkdir -p /home/litellm/.cache && \
     mkdir -p /home/litellm/.local/share/uv && \
+    mkdir -p /home/litellm/.local/bin && \
     chown -R litellm:litellm /home/litellm
 
-# Volta para o usuário padrão
+# 4. Instala backlog localmente para o usuário (evita erro de root/permission denied)
 USER litellm
+RUN npm config set prefix '/home/litellm/.local'
+RUN npm install -g backlog.md
 
-# Adiciona binários locais ao PATH (caso instale algo localmente)
+# 5. Configura o PATH para encontrar os binários locais
 ENV PATH="/home/litellm/.local/bin:${PATH}"
 ENV npm_config_cache="/home/litellm/.npm"
