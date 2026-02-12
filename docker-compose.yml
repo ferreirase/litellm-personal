@@ -1,0 +1,72 @@
+services:
+  litellm:
+    # IMPORTANTE: Remova a linha 'image' para que o Dokploy use o Dockerfile local
+    # build: .  <-- O Dokploy gerencia o build automaticamente se você escolher 'Dockerfile'
+    restart: unless-stopped
+    ports:
+      - "5434:5432"
+      - "4000:4000"
+    command: --port 4000
+    depends_on:
+      litellm-db:
+        condition: service_healthy
+    volumes:
+      # 1. ACESSO AOS ARQUIVOS REAIS (Essencial para mastra-memory e backlog)
+      # Mapeia sua pasta Documents do host para /mnt/documents no container
+      - /home/ferreirase/Documents:/mnt/documents
+      
+      # 2. CACHES PERSISTENTES (Para não re-baixar MCPs a cada restart)
+      - litellm_npm_cache:/home/litellm/.npm
+      - litellm_uv_cache:/home/litellm/.cache/uv
+      
+    environment:
+      # Variáveis do LiteLLM
+      DATABASE_URL: ${DATABASE_URL}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      UI_USERNAME: ${UI_USERNAME}
+      UI_PASSWORD: ${UI_PASSWORD}
+      STORE_MODEL_IN_DB: "True"
+      
+      # Variáveis para MCP
+      npm_config_yes: "true"  # Aceita instalações do npx automaticamente
+      UV_CACHE_DIR: "/home/litellm/.cache/uv" # Define cache do UV
+      
+      # Suas chaves de API (mantive todas)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      COHERE_API_KEY: ${COHERE_API_KEY}
+      OR_SITE_URL: ${OR_SITE_URL}
+      OR_APP_NAME: ${OR_APP_NAME}
+      OR_API_KEY: ${OR_API_KEY}
+      AZURE_API_BASE: ${AZURE_API_BASE}
+      AZURE_API_VERSION: ${AZURE_API_VERSION}
+      AZURE_API_KEY: ${AZURE_API_KEY}
+      REPLICATE_API_KEY: ${REPLICATE_API_KEY}
+      REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      INFISICAL_TOKEN: ${INFISICAL_TOKEN}
+      NOVITA_API_KEY: ${NOVITA_API_KEY}
+      INFINITY_API_KEY: ${INFINITY_API_KEY}
+      ZAI_API_KEY: ${ZAI_API_KEY}
+      FIREWORKS_API_KEY: ${FIREWORKS_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+
+  litellm-db:
+    image: postgres:16-alpine
+    restart: on-failure:5
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - litellm-db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+volumes:
+  litellm-db: {}
+  litellm_npm_cache: {}
+  litellm_uv_cache: {}
