@@ -5,7 +5,8 @@ services:
     ports:
       - "4000:4000"
     environment:
-      - LITELLM_CONFIG_PATH=/app/config.yaml
+      - LITELLM_CONFIG_PATH=/app/proxy_config.yaml
+
     # Volumes ou use File Mounts no Dokploy
     labels:
       - "traefik.enable=true"
