@@ -1,48 +1,12 @@
+version: "3.8"
 services:
   litellm:
-    # Nome explícito para a imagem facilita o debug e evita erros de "tag <none>"
-    image: litellm-custom:v1
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: litellm-service
-    restart: unless-stopped
+    build: .
     ports:
       - "4000:4000"
-    command: --port 4000
-    depends_on:
-      litellm-db:
-        condition: service_healthy
-    volumes:
-      # Seus volumes (ajuste o caminho do host conforme necessário)
-      - /home/ferreirase/Documents:/mnt/documents
-      - litellm_npm_cache:/home/litellm/.npm
-      - litellm_uv_cache:/home/litellm/.cache
     environment:
-      # (Mantenha suas variáveis de ambiente aqui)
-      DATABASE_URL: ${DATABASE_URL}
-      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
-      UI_USERNAME: ${UI_USERNAME}
-      UI_PASSWORD: ${UI_PASSWORD}
-      STORE_MODEL_IN_DB: "True"
-      npm_config_yes: "true"
-
-  litellm-db:
-    image: postgres:16-alpine
-    restart: always
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    volumes:
-      - litellm-db:/var/lib/postgresql/data
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
-volumes:
-  litellm-db: {}
-  litellm_npm_cache: {}
-  litellm_uv_cache: {}
+      - LITELLM_CONFIG_PATH=/app/config.yaml
+    # Volumes ou use File Mounts no Dokploy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.litellm.rule=Host(`litellm.seudominio.com`)"

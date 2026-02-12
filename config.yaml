@@ -1,0 +1,12 @@
+model_list:
+  - model_name: proxy/gemini
+    litellm_params:
+      model: gemini/gemini-1.5-flash-exp
+    litellm_settings:
+      mcp_servers:
+        sequential-thinking:
+          transport: stdio
+          command: npx
+          args: ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+          disabled: false
+      # + outros MCPs
