@@ -1,7 +1,7 @@
 model_list:
-  - model_name: proxy/gemini
+  - model_name: proxy/gpt-4o-mini
     litellm_params:
-      model: gemini/gemini-1.5-flash-exp
+      model: openai/gpt-4o-mini # Seu model + API key env
     litellm_settings:
       mcp_servers:
         sequential-thinking:
@@ -9,4 +9,6 @@ model_list:
           command: npx
           args: ["-y", "@modelcontextprotocol/server-sequential-thinking"]
           disabled: false
-      # + outros MCPs
+        # + outros MCPs aqui
+general_settings:
+  store_model_in_db: true # UI/DB
