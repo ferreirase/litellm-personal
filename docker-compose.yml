@@ -1,0 +1,15 @@
+services:
+  mcp-gateway:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      - SERENA_PROJECT_PATH=/mnt/projects/current
+      - BACKLOG_PROJECT_PATH=/mnt/projects/current
+      - ALLOWED_DIRECTORIES=/mnt/documents
+      - BASE_URL=http://localhost:8081
+    volumes:
+      - /home/ferreirase/Documents:/mnt/documents
+      - /home/ferreirase/Documents/Estudos/AI/ai-memory:/mnt/mastra-memory:ro
+      - ./mcp-config.json:/app/mcp-config.json:ro
+    restart: unless-stopped

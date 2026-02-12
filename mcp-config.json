@@ -1,0 +1,46 @@
+{
+  "servers": {
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server",
+        "--context",
+        "ide",
+        "--project-from-cwd",
+        "--open-web-dashboard",
+        "False"
+      ],
+      "env": {},
+      "cwd": "${SERENA_PROJECT_PATH}"
+    },
+    "backlog": {
+      "command": "backlog",
+      "args": ["mcp", "start"],
+      "cwd": "${BACKLOG_PROJECT_PATH}"
+    },
+    "desktop-commander": {
+      "command": "npx",
+      "args": ["-y", "@wonderwhy-er/desktop-commander"],
+      "env": {
+        "MCP_USE_ANONYMIZED_TELEMETRY": "false",
+        "ALLOWED_DIRECTORIES": "${ALLOWED_DIRECTORIES}",
+        "BLOCKED_COMMANDS": "rm -rf /,dd,mkfs,sudo,su"
+      }
+    },
+    "claude-context": {
+      "command": "npx",
+      "args": ["@zilliz/claude-context-mcp@latest"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "mastra-memory": {
+      "command": "node",
+      "args": ["/mnt/mastra-memory/dist/index.js"]
+    }
+  }
+}
