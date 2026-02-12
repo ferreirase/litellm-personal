@@ -3,11 +3,12 @@ services:
     build:
       context: .
       network: host
+    image: backlog-mcp:latest
     ports:
       - "8081:8081"
     environment:
       - HOST_ROOT=/home/ferreirase/Documents
-      - BASE_URL=http://localhost:8081
+      - BASE_URL=${BASE_URL:-http://localhost:8081}
       - PORT=8081
     volumes:
       - /home/ferreirase/Documents:/data

@@ -1,13 +1,13 @@
 FROM node:20-slim
 
-# Install git and dependencies
+# Fix DNS and install dependencies with retries
 RUN apt-get update && \
     apt-get install -y --no-install-recommends git ca-certificates && \
     npm install -g backlog.md && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Mark all directories under /data as safe for git
+# Mark all directories under /data as safe for git (avoids dubious ownership error)
 RUN git config --global --add safe.directory '*'
 
 WORKDIR /app
