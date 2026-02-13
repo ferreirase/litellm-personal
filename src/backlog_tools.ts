@@ -487,6 +487,27 @@ export const initProjectTool = createTool({
   },
 });
 
+// Backlog Resources (Workflow Guides)
+export const backlogResources = {
+  listResources: async () => [
+    { uri: "backlog://workflow/overview", name: "Backlog Workflow Overview", mimeType: "text/markdown" },
+    { uri: "backlog://workflow/task-creation", name: "Task Creation Guide", mimeType: "text/markdown" },
+    { uri: "backlog://workflow/task-execution", name: "Task Execution Guide", mimeType: "text/markdown" },
+    { uri: "backlog://workflow/task-completion", name: "Task Completion Guide", mimeType: "text/markdown" },
+  ],
+  getResourceContent: async ({ uri }: { uri: string }) => {
+    const contents: Record<string, string> = {
+      "backlog://workflow/overview": "# Backlog Workflow Overview\n\nThis guide covers the overall workflow...",
+      "backlog://workflow/task-creation": "# Task Creation Guide\n\nBest practices for creating tasks...",
+      "backlog://workflow/task-execution": "# Task Execution Guide\n\nHow to execute tasks effectively...",
+      "backlog://workflow/task-completion": "# Task Completion Guide\n\nSteps to complete and archive tasks...",
+    };
+    const text = contents[uri];
+    if (!text) throw new Error(`Resource not found: ${uri}`);
+    return { text };
+  },
+};
+
 export const backlogTools = {
   init_project: initProjectTool,
   task_list: taskList,
