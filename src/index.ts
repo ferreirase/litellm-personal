@@ -17,6 +17,14 @@ import {
 const app = express();
 app.use(cors());
 
+// Global error handler for JSON responses
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("🔥 Global Error:", err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: "Internal Server Error", message: err.message });
+  }
+});
+
 // Global Map to store active sessions
 const sessions = new Map<string, SSEServerTransport>();
 
@@ -33,12 +41,13 @@ const backlogTools = {
 
 app.get("/sse", async (req, res) => {
   try {
-    console.log(`📡 [SSE] New connection from ${req.ip} (${req.get("user-agent")})`);
+    console.log(`📡 [SSE] Connection from ${req.ip}`);
     
-    // Disable buffering for Nginx/Proxies
+    // SSE Headers
+    res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering for Nginx
 
     const server = new MCPServer({
       id: `backlog-${randomUUID()}`,
@@ -47,48 +56,39 @@ app.get("/sse", async (req, res) => {
       tools: backlogTools,
     });
 
-    // Use full URL for the endpoint to avoid resolution issues in some clients like LiteLLM
-    const protocol = req.get("x-forwarded-proto") || req.protocol;
-    const host = req.get("host");
-    const endpoint = `${protocol}://${host}/sse`;
-    
-    console.log(`🔗 [SSE] Using endpoint: ${endpoint}`);
-
-    const transport = new SSEServerTransport(endpoint as any, res);
+    // We use a relative path for messagePath. 
+    // The SDK will append ?sessionId=... automatically.
+    const transport = new SSEServerTransport("/messages", res);
     const sessionId = transport.sessionId;
 
     const sdkServer = server.getServer();
     await sdkServer.connect(transport);
 
     sessions.set(sessionId, transport);
-    console.log(`✅ [SSE] Session created: ${sessionId}`);
+    console.log(`✅ [SSE] Session started: ${sessionId}`);
 
-    res.on("close", () => {
+    req.on("close", () => {
       console.log(`🔴 [SSE] Session closed: ${sessionId}`);
       sessions.delete(sessionId);
     });
   } catch (err: any) {
-    console.error("❌ [SSE] Connection error:", err);
+    console.error("❌ [SSE] Error:", err);
     if (!res.headersSent) {
-      res.status(500).json({ error: "Internal Server Error", details: err.message });
+      res.status(500).json({ error: "SSE failed", details: err.message });
     }
   }
 });
 
-// IMPORTANT: No express.json() here. 
-// handlePostMessage reads the raw request stream.
-app.post("/sse", async (req, res) => {
+app.post("/messages", async (req, res) => {
   const sessionId = req.query.sessionId as string;
   
   if (!sessionId) {
-    console.warn("⚠️ [POST] Missing sessionId in query");
     return res.status(400).json({ error: "Missing sessionId" });
   }
 
   const transport = sessions.get(sessionId);
 
   if (!transport) {
-    console.warn(`⚠️ [POST] Session not found: ${sessionId}`);
     return res.status(404).json({ error: "Session not found" });
   }
 
@@ -97,7 +97,7 @@ app.post("/sse", async (req, res) => {
   } catch (err: any) {
     console.error(`❌ [POST] Error for session ${sessionId}:`, err);
     if (!res.headersSent) {
-      res.status(500).json({ error: "Message handling failed", details: err.message });
+      res.status(500).json({ error: "Failed to handle message", details: err.message });
     }
   }
 });
