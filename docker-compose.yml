@@ -19,11 +19,11 @@ services:
       retries: 5
     restart: unless-stopped
 
-  backlog-mcp:
+  gateway-mcp:
     build:
       context: .
       network: host
-    image: backlog-mcp:latest
+    image: gateway-mcp:latest
     ports:
       - "8081:8081"
     environment:
@@ -32,22 +32,22 @@ services:
       - BASE_URL=${BASE_URL:-http://localhost:8081}
       - HOST_ROOT=/home/ferreirase/Documents
       - DEFAULT_PROJECT_PATH=/home/ferreirase/Documents/Estudos/AI/stdio2sse
-      
+
       # Memory (PostgreSQL PGVector)
       - DATABASE_URL=postgresql://mastra:mastra_password@postgres:5432/mastra_memory
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}
-      
+
       # Claude Context
       - EMBEDDING_PROVIDER=VoyageAI
       - EMBEDDING_MODEL=voyage-code-3
       - MILVUS_TOKEN=${MILVUS_TOKEN}
       - VOYAGEAI_API_KEY=${VOYAGEAI_API_KEY}
-      
+
       # Desktop Commander
       - ALLOWED_DIRECTORIES=/data
       - BLOCKED_COMMANDS=rm -rf /,dd,mkfs,sudo,su
-      
+
     volumes:
       - /home/ferreirase/Documents:/data
     networks:
