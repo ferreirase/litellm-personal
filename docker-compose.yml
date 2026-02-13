@@ -4,7 +4,8 @@ services:
       context: .
       network: host
     image: backlog-mcp:latest
-    network_mode: host
+    ports:
+      - "8081:8081"
     environment:
       - HOST_ROOT=/home/ferreirase/Documents
       - DEFAULT_PROJECT_PATH=/home/ferreirase/Documents/Estudos/AI/stdio2sse
