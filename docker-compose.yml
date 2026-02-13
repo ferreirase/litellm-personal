@@ -2,6 +2,7 @@ services:
   backlog-mcp:
     build:
       context: .
+      network: host
     image: backlog-mcp:latest
     ports:
       - "8081:8081"
