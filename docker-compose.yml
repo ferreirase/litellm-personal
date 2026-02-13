@@ -7,6 +7,7 @@ services:
     network_mode: host
     environment:
       - HOST_ROOT=/home/ferreirase/Documents
+      - DEFAULT_PROJECT_PATH=/home/ferreirase/Documents/Estudos/AI/stdio2sse
       - BASE_URL=${BASE_URL:-http://localhost:8081}
       - PORT=8081
     volumes:
