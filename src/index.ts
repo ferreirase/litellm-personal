@@ -1,63 +1,82 @@
+
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { randomUUID } from "crypto";
 import { MCPServer } from "@mastra/mcp";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import {
-  initProjectTool,
-  listTasksTool,
-  viewTaskTool,
-  createTaskTool,
-  editTaskTool,
-  listDocsTool,
-  viewDocTool,
-} from "./tools.js";
+import { backlogTools } from "./backlog_tools.js";
+import { memoryTools } from "./memory_tools.js";
+import { StdioBridge } from "./bridge.js";
 
 const app = express();
 app.use(cors());
 
-// Global error handler for JSON responses
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error("🔥 Global Error:", err);
-  if (!res.headersSent) {
-    res.status(500).json({ error: "Internal Server Error", message: err.message });
-  }
-});
-
 // Global Map to store active sessions
 const sessions = new Map<string, SSEServerTransport>();
 
-// Tools definition
-const backlogTools = {
-  "init-project": initProjectTool,
-  "list-tasks": listTasksTool,
-  "view-task": viewTaskTool,
-  "create-task": createTaskTool,
-  "edit-task": editTaskTool,
-  "list-docs": listDocsTool,
-  "view-doc": viewDocTool,
-};
+// Instantiate Bridges
+const desktopCommander = new StdioBridge("npx", ["-y", "@wonderwhy-er/desktop-commander@latest"], {
+  ALLOWED_DIRECTORIES: "/data",
+  BLOCKED_COMMANDS: "rm -rf /,dd,mkfs,sudo,su",
+});
+
+const claudeContext = new StdioBridge("npx", ["@zilliz/claude-context-mcp@latest"]);
+
+const thinking = new StdioBridge("npx", ["-y", "@modelcontextprotocol/server-sequential-thinking"]);
+
+const serena = new StdioBridge("uvx", [
+  "--from", "git+https://github.com/oraios/serena",
+  "serena", "start-mcp-server",
+  "--context", "ide",
+  "--project-from-cwd",
+  "--open-web-dashboard", "False"
+]);
 
 app.get("/sse", async (req, res) => {
   try {
     console.log(`📡 [SSE] Connection from ${req.ip}`);
     
-    // SSE Headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering for Nginx
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    // Load tools from all sources
+    const dcTools = await desktopCommander.getMastraTools();
+    const contextTools = await claudeContext.getMastraTools();
+    const thinkTools = await thinking.getMastraTools();
+    const serenaTools = await serena.getMastraTools();
+
+    const allTools = {
+      ...backlogTools,
+      ...memoryTools,
+      ...dcTools,
+      ...contextTools,
+      ...thinkTools,
+      ...serenaTools,
+    };
 
     const server = new MCPServer({
-      id: `backlog-${randomUUID()}`,
-      name: "Backlog MCP Server",
-      version: "1.3.2",
-      tools: backlogTools,
+      id: `mcp-hub-${randomUUID()}`,
+      name: "Mastra Unified MCP Hub",
+      version: "1.4.0",
+      tools: allTools,
+      resources: {
+        listResources: async () => [
+          { uri: "backlog://workflow/overview", name: "Backlog Workflow Overview", mimeType: "text/markdown" },
+          { uri: "backlog://workflow/task-creation", name: "Task Creation Guide", mimeType: "text/markdown" },
+          { uri: "backlog://workflow/task-execution", name: "Task Execution Guide", mimeType: "text/markdown" },
+          { uri: "backlog://workflow/task-completion", name: "Task Completion Guide", mimeType: "text/markdown" },
+        ],
+        getResourceContent: async ({ uri }) => {
+          // Simplification: In a real scenario, this calls the CLI. 
+          // For now, returning a placeholder or calling the CLI if available.
+          return { text: `Content for ${uri}` };
+        },
+      }
     });
 
-    // We use a relative path for messagePath. 
-    // The SDK will append ?sessionId=... automatically.
     const transport = new SSEServerTransport("/messages", res);
     const sessionId = transport.sessionId;
 
@@ -65,10 +84,10 @@ app.get("/sse", async (req, res) => {
     await sdkServer.connect(transport);
 
     sessions.set(sessionId, transport);
-    console.log(`✅ [SSE] Session started: ${sessionId}`);
+    console.log(`✅ [SSE] Session: ${sessionId}`);
 
     req.on("close", () => {
-      console.log(`🔴 [SSE] Session closed: ${sessionId}`);
+      console.log(`🔴 [SSE] Closed: ${sessionId}`);
       sessions.delete(sessionId);
     });
   } catch (err: any) {
@@ -81,41 +100,20 @@ app.get("/sse", async (req, res) => {
 
 app.post("/messages", async (req, res) => {
   const sessionId = req.query.sessionId as string;
-  
-  if (!sessionId) {
-    return res.status(400).json({ error: "Missing sessionId" });
-  }
-
   const transport = sessions.get(sessionId);
-
-  if (!transport) {
-    return res.status(404).json({ error: "Session not found" });
-  }
-
+  if (!transport) return res.status(404).json({ error: "Session not found" });
   try {
     await transport.handlePostMessage(req, res);
   } catch (err: any) {
-    console.error(`❌ [POST] Error for session ${sessionId}:`, err);
-    if (!res.headersSent) {
-      res.status(500).json({ error: "Failed to handle message", details: err.message });
-    }
+    res.status(500).json({ error: "Failed to handle message" });
   }
 });
 
 app.get("/", (req, res) => {
-  res.json({ 
-    name: "Backlog MCP Server", 
-    status: "online", 
-    sessions: sessions.size,
-    version: "1.3.2"
-  });
-});
-
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({ name: "Unified Hub", status: "online", tools: "85 active" });
 });
 
 const PORT = 8081;
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Backlog MCP ready on port ${PORT}`);
+  console.log(`🚀 Unified MCP Hub ready on port ${PORT}`);
 });

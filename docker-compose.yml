@@ -1,4 +1,24 @@
 services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: mastra-memory-db
+    environment:
+      POSTGRES_USER: mastra
+      POSTGRES_PASSWORD: mastra_password
+      POSTGRES_DB: mastra_memory
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - litellm_net
+      - default
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mastra -d mastra_memory"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   backlog-mcp:
     build:
       context: .
@@ -7,16 +27,39 @@ services:
     ports:
       - "8081:8081"
     environment:
+      # Infrastructure
+      - PORT=8081
+      - BASE_URL=${BASE_URL:-http://localhost:8081}
       - HOST_ROOT=/home/ferreirase/Documents
       - DEFAULT_PROJECT_PATH=/home/ferreirase/Documents/Estudos/AI/stdio2sse
-      - BASE_URL=${BASE_URL:-http://localhost:8081}
-      - PORT=8081
+      
+      # Memory (PostgreSQL PGVector)
+      - DATABASE_URL=postgresql://mastra:mastra_password@postgres:5432/mastra_memory
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}
+      
+      # Claude Context
+      - EMBEDDING_PROVIDER=VoyageAI
+      - EMBEDDING_MODEL=voyage-code-3
+      - MILVUS_TOKEN=${MILVUS_TOKEN}
+      - VOYAGEAI_API_KEY=${VOYAGEAI_API_KEY}
+      
+      # Desktop Commander
+      - ALLOWED_DIRECTORIES=/data
+      - BLOCKED_COMMANDS=rm -rf /,dd,mkfs,sudo,su
+      
     volumes:
       - /home/ferreirase/Documents:/data
-    restart: unless-stopped
     networks:
       - litellm_net
       - default
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
 
 networks:
   litellm_net:
