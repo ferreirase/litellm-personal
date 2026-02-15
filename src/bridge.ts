@@ -34,7 +34,7 @@ export class StdioBridge {
       clientInfo: { name: "Mastra-Hub", version: "1.0.0" },
     });
     
-    await this.request("notifications/initialized", {});
+    // Note: notifications/initialized is not required for MCP 2024-11-05
   }
 
   private processBuffer() {
