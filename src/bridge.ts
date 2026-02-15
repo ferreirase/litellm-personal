@@ -86,7 +86,7 @@ export class StdioBridge {
       tools[tool.name] = createTool({
         id: tool.name,
         description: tool.description,
-        inputSchema: z.any(), // We trust the remote tool's schema
+        inputSchema: z.object({}).passthrough(), // Accept any object properties
         execute: async (input) => {
           const res = await this.request("tools/call", {
             name: tool.name,
