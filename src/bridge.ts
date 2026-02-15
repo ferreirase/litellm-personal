@@ -1,4 +1,3 @@
-
 import { spawn, ChildProcess } from "child_process";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
@@ -8,8 +7,36 @@ export class StdioBridge {
   private messageId = 1;
   private pendingRequests = new Map<number, (res: any) => void>();
   private buffer = "";
+  private hostRoot: string;
+  private containerData: string;
 
-  constructor(private command: string, private args: string[], private env: Record<string, string> = {}) {}
+  constructor(private command: string, private args: string[], private env: Record<string, string> = {}) {
+    this.hostRoot = process.env.HOST_ROOT || "/home/ferreirase/Documents";
+    this.containerData = "/data";
+  }
+
+  /**
+   * Recursively converts host paths to container paths in parameters
+   */
+  private convertPathsToContainer(params: any): any {
+    if (typeof params === 'string' && params.startsWith(this.hostRoot)) {
+      return params.replace(this.hostRoot, this.containerData);
+    }
+    
+    if (Array.isArray(params)) {
+      return params.map(item => this.convertPathsToContainer(item));
+    }
+    
+    if (typeof params === 'object' && params !== null) {
+      const converted: any = {};
+      for (const [key, value] of Object.entries(params)) {
+        converted[key] = this.convertPathsToContainer(value);
+      }
+      return converted;
+    }
+    
+    return params;
+  }
 
   async start(): Promise<void> {
     console.log(`🚀 Starting Stdio Bridge: ${this.command} ${this.args.join(" ")}`);
@@ -88,9 +115,12 @@ export class StdioBridge {
         description: tool.description,
         inputSchema: z.object({}).passthrough(), // Accept any object properties
         execute: async (input) => {
+          // Convert host paths to container paths before sending
+          const convertedInput = this.convertPathsToContainer(input);
+          
           const res = await this.request("tools/call", {
             name: tool.name,
-            arguments: input,
+            arguments: convertedInput,
           });
           if (res.error) throw new Error(res.error.message);
           return res.result;
