@@ -192,33 +192,42 @@ export class StdioBridge {
     const remoteTools = await this.listTools();
     const tools: Record<string, any> = {};
 
+    console.log(`🔧 [${this.options.command}] Creating ${remoteTools.length} Mastra tools...`);
+
     for (const tool of remoteTools) {
+      console.log(`   Creating tool: ${tool.name}`);
+      
       tools[tool.name] = createTool({
         id: tool.name,
         description: tool.description,
         inputSchema: z.object({}).passthrough(),
         execute: async (input) => {
-          if (this.debug) {
-            console.log(`📤 [${this.options.command}] Tool call: ${tool.name}`);
-            console.log(`   Input: ${JSON.stringify(input)}`);
+          // Always log for debugging
+          console.log(`📤 [${this.options.command}] Tool call: ${tool.name}`);
+          console.log(`   Raw Input: ${JSON.stringify(input)}`);
+          console.log(`   Input type: ${typeof input}`);
+          console.log(`   Input keys: ${input ? Object.keys(input).join(', ') : 'undefined'}`);
+          
+          if (!input || Object.keys(input).length === 0) {
+            console.error(`❌ [${this.options.command}] ERROR: Empty input received for ${tool.name}`);
+            throw new Error(`Empty input received for tool ${tool.name}`);
           }
           
           // Convert all paths to container format
           const convertedInput = this.convertAllPathsToContainer(input);
           
-          if (this.debug && JSON.stringify(input) !== JSON.stringify(convertedInput)) {
-            console.log(`   Converted: ${JSON.stringify(convertedInput)}`);
-          }
+          console.log(`   Converted Input: ${JSON.stringify(convertedInput)}`);
           
           const res = await this.request("tools/call", {
             name: tool.name,
             arguments: convertedInput,
           });
           
-          if (res.error) throw new Error(res.error.message);
+          console.log(`📥 [${this.options.command}] Response: ${JSON.stringify(res).substring(0, 200)}...`);
           
-          if (this.debug) {
-            console.log(`📥 [${this.options.command}] Response received`);
+          if (res.error) {
+            console.error(`❌ [${this.options.command}] Tool error:`, res.error);
+            throw new Error(res.error.message);
           }
           
           return res.result;
@@ -226,6 +235,7 @@ export class StdioBridge {
       });
     }
 
+    console.log(`✅ [${this.options.command}] Created ${Object.keys(tools).length} tools`);
     return tools;
   }
 
