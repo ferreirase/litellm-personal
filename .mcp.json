@@ -2,7 +2,7 @@
   "mcpServers": {
     "claude-context": {
       "command": "npx",
-      "args": ["-y", "@zilliz/claude-context"]
+      "args": ["-y", "@zilliz/claude-context-mcp"]
     },
     "serena": {
       "command": "uvx",
