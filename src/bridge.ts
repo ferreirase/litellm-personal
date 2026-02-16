@@ -336,7 +336,7 @@ export class StdioBridge {
       tools[tool.name] = createTool({
         id: tool.name,
         description: tool.description,
-        inputSchema: z.object({}).passthrough(),
+        inputSchema: undefined,
         execute: async (input: any, context: any) => {
           // EXTENSIVE DEBUG LOGGING - Phase 1 Diagnosis
           console.log(
