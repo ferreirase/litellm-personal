@@ -85,6 +85,9 @@ Object.keys(filteredMcpServers).forEach((name) => {
 // Tool caches for bridges
 const toolCaches: Record<string, any> = {};
 
+// Segment servers - one MCPServer instance per segment (shared across sessions)
+const segmentServers: Record<string, MCPServer> = {};
+
 async function loadTools() {
   console.log("\n🔧 Loading Tools...");
 
@@ -105,10 +108,10 @@ async function loadTools() {
 // Create segment route
 function createSegmentRoute(
   segmentName: string,
-  tools: Record<string, any>,
-  resources?: any,
+  server: MCPServer,
 ) {
   const sessions = sessionStores[segmentName];
+  const sdkServer = server.getServer();
 
   // Streamable HTTP endpoint (handles GET, POST, DELETE)
   app.all(`/${segmentName}/mcp`, async (req, res) => {
@@ -128,16 +131,8 @@ function createSegmentRoute(
         req.body?.method === "initialize"
       ) {
         console.log(
-          `🔧 [${segmentName}] Creating MCPServer with ${Object.keys(tools).length} tools`,
+          `🔧 [${segmentName}] Creating new transport for session (reusing shared server)`,
         );
-
-        const server = new MCPServer({
-          id: `${segmentName}-${randomUUID()}`,
-          name: `MCP ${segmentName.charAt(0).toUpperCase() + segmentName.slice(1)} Server`,
-          version: "1.4.0",
-          tools,
-          resources,
-        });
 
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
@@ -155,7 +150,7 @@ function createSegmentRoute(
           }
         };
 
-        const sdkServer = server.getServer();
+        // Connect the transport to the shared server
         await sdkServer.connect(transport);
       } else {
         console.error(`❌ [${segmentName}] Invalid request - no valid session`);
@@ -257,13 +252,27 @@ async function initializeSegments() {
 
   // Initialize native segments
   if (nativeSegments.memory) {
-    createSegmentRoute("memory", memoryTools);
+    console.log(`📦 [memory] Creating shared MCPServer with ${Object.keys(memoryTools).length} tools`);
+    segmentServers.memory = new MCPServer({
+      id: "memory-server",
+      name: "MCP Memory Server",
+      version: "1.4.0",
+      tools: memoryTools,
+    });
+    createSegmentRoute("memory", segmentServers.memory);
   }
 
   // Initialize MCP server segments
   Object.entries(filteredMcpServers).forEach(([name, config]) => {
     if (bridges[name] && toolCaches[name]) {
-      createSegmentRoute(name, toolCaches[name]);
+      console.log(`📦 [${name}] Creating shared MCPServer with ${Object.keys(toolCaches[name]).length} tools`);
+      segmentServers[name] = new MCPServer({
+        id: `${name}-server`,
+        name: `MCP ${name.charAt(0).toUpperCase() + name.slice(1)} Server`,
+        version: "1.4.0",
+        tools: toolCaches[name],
+      });
+      createSegmentRoute(name, segmentServers[name]);
     }
   });
 }
