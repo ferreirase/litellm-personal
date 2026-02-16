@@ -1,0 +1,152 @@
+Initializing deployment
+Cloning Repo github.com/ferreirase/litellm-personal.git to /etc/dokploy/compose/personal-teste-pb6zfc/code: ✅
+Cloning into '/etc/dokploy/compose/personal-teste-pb6zfc/code'...
+remote: Enumerating objects: 24, done.
+remote: Counting objects:   4% (1/24)
+remote: Counting objects:   8% (2/24)
+remote: Counting objects:  12% (3/24)
+remote: Counting objects:  16% (4/24)
+remote: Counting objects:  20% (5/24)
+remote: Counting objects:  25% (6/24)
+remote: Counting objects:  29% (7/24)
+remote: Counting objects:  33% (8/24)
+remote: Counting objects:  37% (9/24)
+remote: Counting objects:  41% (10/24)
+remote: Counting objects:  45% (11/24)
+remote: Counting objects:  50% (12/24)
+remote: Counting objects:  54% (13/24)
+remote: Counting objects:  58% (14/24)
+remote: Counting objects:  62% (15/24)
+remote: Counting objects:  66% (16/24)
+remote: Counting objects:  70% (17/24)
+remote: Counting objects:  75% (18/24)
+remote: Counting objects:  79% (19/24)
+remote: Counting objects:  83% (20/24)
+remote: Counting objects:  87% (21/24)
+remote: Counting objects:  91% (22/24)
+remote: Counting objects:  95% (23/24)
+remote: Counting objects: 100% (24/24)
+remote: Counting objects: 100% (24/24), done.
+remote: Compressing objects:   4% (1/21)
+remote: Compressing objects:   9% (2/21)
+remote: Compressing objects:  14% (3/21)
+remote: Compressing objects:  19% (4/21)
+remote: Compressing objects:  23% (5/21)
+remote: Compressing objects:  28% (6/21)
+remote: Compressing objects:  33% (7/21)
+remote: Compressing objects:  38% (8/21)
+remote: Compressing objects:  42% (9/21)
+remote: Compressing objects:  47% (10/21)
+remote: Compressing objects:  52% (11/21)
+remote: Compressing objects:  57% (12/21)
+remote: Compressing objects:  61% (13/21)
+remote: Compressing objects:  66% (14/21)
+remote: Compressing objects:  71% (15/21)
+remote: Compressing objects:  76% (16/21)
+remote: Compressing objects:  80% (17/21)
+remote: Compressing objects:  85% (18/21)
+remote: Compressing objects:  90% (19/21)
+remote: Compressing objects:  95% (20/21)
+remote: Compressing objects: 100% (21/21)
+remote: Compressing objects: 100% (21/21), done.
+Receiving objects:   4% (1/24)
+Receiving objects:   8% (2/24)
+Receiving objects:  12% (3/24)
+Receiving objects:  16% (4/24)
+Receiving objects:  20% (5/24)
+Receiving objects:  25% (6/24)
+Receiving objects:  29% (7/24)
+Receiving objects:  33% (8/24)
+Receiving objects:  37% (9/24)
+Receiving objects:  41% (10/24)
+Receiving objects:  45% (11/24)
+Receiving objects:  50% (12/24)
+Receiving objects:  54% (13/24)
+Receiving objects:  58% (14/24)
+Receiving objects:  62% (15/24)
+Receiving objects:  66% (16/24)
+Receiving objects:  70% (17/24)
+Receiving objects:  75% (18/24)
+Receiving objects:  79% (19/24)
+remote: Total 24 (delta 1), reused 11 (delta 0), pack-reused 0 (from 0)
+Receiving objects:  83% (20/24)
+Receiving objects:  87% (21/24)
+Receiving objects:  91% (22/24)
+Receiving objects:  95% (23/24)
+Receiving objects: 100% (24/24)
+Receiving objects: 100% (24/24), 52.68 KiB | 674.00 KiB/s, done.
+Resolving deltas:   0% (0/1)
+Resolving deltas: 100% (1/1)
+Resolving deltas: 100% (1/1), done.
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║ App Name: personal-teste-pb6zfc                                              ║
+║ Build Compose 🐳                                                             ║
+║ Detected: 0 mounts 📂                                                        ║
+║ Command: docker compose -p personal-teste-pb6zfc -f ./docker-compose.yml up  ║
+║ -d --build --remove-orphans                                                  ║
+║ Source Type: docker github ✅                                                ║
+║ Compose Type: docker-compose ✅                                              ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+Image gateway-mcp:latest Building
+#1 [internal] load local bake definitions
+#1 reading from stdin 604B done
+#1 DONE 0.0s
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.10kB done
+#2 DONE 0.0s
+#3 [internal] load metadata for docker.io/library/node:22-slim
+#3 DONE 0.9s
+#4 [internal] load .dockerignore
+#4 transferring context: 99B done
+#4 DONE 0.0s
+#5 [ 1/13] FROM docker.io/library/node:22-slim@sha256:5373f1906319b3a1f291da5d102f4ce5c77ccbe29eb637f072b6c7b70443fc36
+#5 DONE 0.0s
+#6 [internal] load build context
+#6 transferring context: 63.38kB done
+#6 DONE 0.0s
+#7 [ 6/13] RUN git config --global --add safe.directory '*'
+#7 CACHED
+#8 [ 3/13] RUN mkdir -p /root/.context
+#8 CACHED
+#9 [ 8/13] COPY package*.json ./
+#9 CACHED
+#10 [ 2/13] RUN apt-get update &&     apt-get install -y --no-install-recommends     git ca-certificates python3 python3-pip curl &&     npm install -g backlog.md &&     curl -LsSf https://astral.sh/uv/install.sh | sh &&     apt-get clean &&     rm -rf /var/lib/apt/lists/*
+#10 CACHED
+#11 [ 4/13] RUN mkdir -p /root/.serena/contexts
+#11 CACHED
+#12 [ 5/13] COPY contexts/restricted-ide.yml /root/.serena/contexts/restricted-ide.yml
+#12 CACHED
+#13 [ 7/13] WORKDIR /app
+#13 CACHED
+#14 [ 9/13] RUN npm install
+#14 CACHED
+#15 [10/13] COPY . .
+#15 DONE 0.1s
+#16 [11/13] RUN chmod +x entrypoint.sh
+#16 DONE 0.2s
+#17 [12/13] RUN npm run build
+#17 0.221
+#17 0.221 > backlog-mcp-bridge@1.3.0 build
+#17 0.221 > tsc
+#17 0.221
+#17 DONE 2.0s
+#18 [13/13] RUN ln -sf /app/backlog.md /data/backlog.md
+#18 0.129 ln: failed to create symbolic link '/data/backlog.md': No such file or directory
+#18 ERROR: process "/bin/sh -c ln -sf /app/backlog.md /data/backlog.md" did not complete successfully: exit code: 1
+------
+> [13/13] RUN ln -sf /app/backlog.md /data/backlog.md:
+0.129 ln: failed to create symbolic link '/data/backlog.md': No such file or directory
+------
+Dockerfile:34
+--------------------
+|     RUN chmod +x entrypoint.sh
+|     RUN npm run build
+| >>> RUN ln -sf /app/backlog.md /data/backlog.md
+|
+|     # Default environment variables
+--------------------
+failed to solve: process "/bin/sh -c ln -sf /app/backlog.md /data/backlog.md" did not complete successfully: exit code: 1
+Error: ❌ Docker command failed
+Error occurred ❌, check the logs for details.
