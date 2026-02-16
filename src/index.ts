@@ -10,7 +10,6 @@ import { StdioBridge } from "./bridge.js";
 
 const app = express();
 app.use(cors());
-app.use(express.json());
 
 // Segment enablement from ENV
 const segments = {
@@ -165,10 +164,7 @@ function createSegmentRoute(
       return res.status(404).json({ error: "Session not found" });
     }
     
-    // Debug: Log incoming message
-    console.log(`📨 [${segmentName}] Message received:`);
-    console.log(`   Session: ${sessionId}`);
-    console.log(`   Body: ${JSON.stringify(req.body, null, 2)}`);
+    console.log(`📨 [${segmentName}] Message received for session: ${sessionId}`);
     
     try {
       await transport.handlePostMessage(req, res);
