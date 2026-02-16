@@ -125,6 +125,13 @@ function createSegmentRoute(
       res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-Accel-Buffering', 'no');
 
+      console.log(`🔧 [${segmentName}] Creating MCPServer with ${Object.keys(tools).length} tools`);
+      
+      // Log tool names for debugging
+      Object.keys(tools).forEach(toolName => {
+        console.log(`   - Tool: ${toolName}`);
+      });
+      
       const server = new MCPServer({
         id: `${segmentName}-${randomUUID()}`,
         name: `MCP ${segmentName.charAt(0).toUpperCase() + segmentName.slice(1)} Server`,
@@ -164,7 +171,29 @@ function createSegmentRoute(
       return res.status(404).json({ error: "Session not found" });
     }
     
-    console.log(`📨 [${segmentName}] Message received for session: ${sessionId}`);
+    // Capture raw body for debugging
+    const chunks: Buffer[] = [];
+    const originalOnData = req.on.bind(req);
+    
+    req.on('data', (chunk: Buffer) => {
+      chunks.push(chunk);
+    });
+    
+    req.on('end', () => {
+      const rawBody = Buffer.concat(chunks).toString('utf8');
+      console.log(`\n📨 [${segmentName}] RAW HTTP BODY:`);
+      console.log(`═══════════════════════════════════════════════════════`);
+      console.log(rawBody);
+      try {
+        const parsed = JSON.parse(rawBody);
+        console.log(`\n📋 Parsed JSON:`);
+        console.log(`  Method: ${parsed.method}`);
+        console.log(`  Params: ${JSON.stringify(parsed.params, null, 2)}`);
+      } catch (e) {
+        console.log(`\n⚠️  Not valid JSON`);
+      }
+      console.log(`═══════════════════════════════════════════════════════\n`);
+    });
     
     try {
       await transport.handlePostMessage(req, res);
