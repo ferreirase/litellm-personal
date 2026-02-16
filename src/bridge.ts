@@ -137,6 +137,9 @@ export class StdioBridge {
 
     // Use shell: false for backlog, true for others
     const useShell = this.options.command !== "backlog";
+    
+    // For backlog, try without cwd to use current working directory
+    const useCwd = this.options.command !== "backlog";
 
     this.process = spawn(this.options.command, this.options.args, {
       env: {
@@ -146,21 +149,42 @@ export class StdioBridge {
         CONTAINER_DATA: this.containerData,
       },
       shell: useShell,
-      cwd: this.basePath,
+      cwd: useCwd ? this.basePath : undefined,
     });
 
+    if (this.debug) {
+      console.log(`   Process spawned with PID: ${this.process.pid}`);
+      console.log(`   Working directory: ${useCwd ? this.basePath : process.cwd()}`);
+    }
+
     this.process.stdout?.on("data", (data) => {
+      if (this.debug && this.options.command === "backlog") {
+        console.log(`   STDOUT: ${data.toString()}`);
+      }
       this.buffer += data.toString();
       this.processBuffer();
     });
 
     this.process.stderr?.on("data", (data) => {
+      if (this.debug && this.options.command === "backlog") {
+        console.log(`   STDERR: ${data.toString()}`);
+      }
       console.error(`[${this.options.command} ERR] ${data}`);
     });
 
     this.process.on("exit", (code) => {
       console.log(`[${this.options.command}] Process exited with code ${code}`);
     });
+
+    // Check if process is running
+    setTimeout(() => {
+      if (!this.process || this.process.killed) {
+        console.error(`❌ [${this.options.command}] Process not running or killed after spawn!`);
+        if (this.options.command === "backlog") {
+          console.error(`   PID was: ${this.process?.pid}`);
+        }
+      }
+    }, 1000);
 
     // Wait longer for process to be ready (especially important for MCPs with dependencies)
     const waitTime = this.options.command === "backlog" ? 1000 : 500;
@@ -219,9 +243,17 @@ export class StdioBridge {
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(id, resolve);
 
-      // Add timeout to avoid hanging requests (longer for MCPs with heavy initialization)
-      const timeoutMs = this.options.command === "backlog" ? 60000 : 30000;
+      // Add longer timeout for backlog (120s) vs others (30s)
+      const timeoutMs = this.options.command === "backlog" ? 120000 : 30000;
+      
+      if (this.debug) {
+        console.log(`   Request timeout set to ${timeoutMs}ms (${timeoutMs / 1000}s)`);
+      }
+      
       const timeout = setTimeout(() => {
+        if (this.debug) {
+          console.error(`   ❌ Request timeout after ${timeoutMs}ms: ${method}`);
+        }
         this.pendingRequests.delete(id);
         reject(new Error(`Request timeout after ${timeoutMs}ms: ${method}`));
       }, timeoutMs);
@@ -229,6 +261,9 @@ export class StdioBridge {
       // Wrapper to clear timeout when response arrives
       const originalResolve = resolve;
       this.pendingRequests.set(id, (data: any) => {
+        if (this.debug) {
+          console.log(`   ✅ Response received for request ${method}, clearing timeout`);
+        }
         clearTimeout(timeout);
         originalResolve(data);
       });
@@ -244,15 +279,46 @@ export class StdioBridge {
     if (this.debug) {
       console.log(`   Calling tools/list...`);
     }
+    
+    if (this.debug && this.options.command === "backlog") {
+      console.log(`   Current buffer length: ${this.buffer.length}`);
+      console.log(`   Current buffer content: ${this.buffer}`);
+    }
+    
     const res = await this.request("tools/list", {});
+    
     if (this.debug) {
       console.log(`   Response received:`, res);
-      console.log(`   Tools in response:`, res?.result?.tools);
+      console.log(`   Response type: ${typeof res}`);
+      console.log(`   Response keys:`, Object.keys(res));
+      
+      if (res && typeof res === "object") {
+        if ("result" in res) {
+          console.log(`   Result type: ${typeof res.result}`);
+          if (res.result && typeof res.result === "object" && "tools" in res.result) {
+            console.log(`   Tools array type: ${typeof res.result.tools}`);
+            console.log(`   Tools array length:`, Array.isArray(res.result.tools) ? res.result.tools.length : "not an array");
+            if (Array.isArray(res.result.tools)) {
+              console.log(`   Tools found:`, res.result.tools.map((tool: any) => tool.name));
+            }
+          } else if (res.result === null) {
+            console.log(`   Result is null`);
+          }
+        } else if ("error" in res) {
+          console.error(`   Error in response:`, res.error);
+        }
+      }
     }
+    
     const tools = res.result?.tools || [];
-    if (this.debug) {
+    
+    if (this.debug && this.options.command === "backlog") {
       console.log(`   Returning ${tools.length} tools`);
+      if (tools.length === 0) {
+        console.error(`   ⚠️ WARNING: No tools found in response!`);
+      }
     }
+    
     return tools;
   }
 
