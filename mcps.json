@@ -13,14 +13,14 @@
         "serena",
         "start-mcp-server",
         "--project-path",
-        "/home/ferreirase/Documents/Estudos/AI/stdio2sse"
+        "/data/Estudos/AI/stdio2sse"
       ]
     },
     "desktop-commander": {
       "command": "npx",
       "args": ["-y", "@wonderwhy-er/desktop-commander@latest"],
       "env": {
-        "ALLOWED_DIRECTORIES": "/data/Documents",
+        "ALLOWED_DIRECTORIES": "/data",
         "BLOCKED_COMMANDS": "rm -rf /,dd,mkfs,sudo,su"
       }
     },
@@ -30,7 +30,10 @@
     },
     "backlog": {
       "command": "backlog",
-      "args": ["mcp", "start"]
+      "args": ["mcp", "start"],
+      "env": {
+        "BACKLOG_PROJECT_PATH": "/data/Estudos/AI/stdio2sse"
+      }
     }
   }
 }

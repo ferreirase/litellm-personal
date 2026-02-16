@@ -146,7 +146,7 @@ export class StdioBridge {
         CONTAINER_DATA: this.containerData,
       },
       shell: useShell,
-      cwd: this.basePath,
+      cwd: this.options.env?.BACKLOG_PROJECT_PATH || this.basePath,
     });
 
     if (this.debug) {
