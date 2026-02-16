@@ -162,11 +162,12 @@ export class StdioBridge {
       console.log(`[${this.options.command}] Process exited with code ${code}`);
     });
 
-    // Wait for process to be ready (especially important for backlog)
+    // Wait longer for process to be ready (especially important for MCPs with dependencies)
+    const waitTime = this.options.command === "backlog" ? 1000 : 500;
     if (this.debug) {
-      console.log(`   Waiting ${500}ms for process to be ready...`);
+      console.log(`   Waiting ${waitTime}ms for process to be ready...`);
     }
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, waitTime));
 
     // Send initialize request
     if (this.debug) {
@@ -218,11 +219,12 @@ export class StdioBridge {
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(id, resolve);
 
-      // Add timeout to avoid hanging requests
+      // Add timeout to avoid hanging requests (longer for MCPs with heavy initialization)
+      const timeoutMs = this.options.command === "backlog" ? 60000 : 30000;
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(id);
-        reject(new Error(`Request timeout after 30000ms: ${method}`));
-      }, 30000);
+        reject(new Error(`Request timeout after ${timeoutMs}ms: ${method}`));
+      }, timeoutMs);
 
       // Wrapper to clear timeout when response arrives
       const originalResolve = resolve;
