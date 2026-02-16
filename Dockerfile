@@ -31,6 +31,7 @@ RUN npm install
 COPY . .
 RUN chmod +x entrypoint.sh
 RUN npm run build
+RUN ln -sf /app/backlog.md /data/backlog.md
 
 # Default environment variables
 ENV PORT=8081
