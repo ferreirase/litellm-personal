@@ -18,18 +18,18 @@ const mcpConfig = JSON.parse(
   readFileSync(join(process.cwd(), "mcps.json"), "utf-8"),
 );
 
-// Filter out serena and disabled servers from config
-const filteredMcpServers: Record<string, { command: string; args: string[]; disabled?: boolean }> =
+// Filter out disabled servers from config
+const filteredMcpServers: Record<string, { command: string; args: string[]; disabled?: boolean; disabledTools?: string[] }> =
   {};
 Object.entries(mcpConfig.mcpServers).forEach(
   ([name, config]: [string, any]) => {
-    if (name !== "serena" && !config.disabled) {
+    if (!config.disabled) {
       filteredMcpServers[name] = config;
     }
   },
 );
 
-console.log("📊 MCP Servers from mcps.json (excluding serena & disabled):");
+console.log("📊 MCP Servers from mcps.json (excluding disabled):");
 Object.keys(filteredMcpServers).forEach((name) => {
   console.log(`  ✅ ${name}`);
 });
@@ -92,10 +92,25 @@ async function loadTools() {
   for (const [name, bridge] of Object.entries(bridges)) {
     if (bridge) {
       console.log(`  Loading ${name} tools...`);
-      toolCaches[name] = await bridge.getMastraTools();
-      console.log(
-        `    ✅ ${Object.keys(toolCaches[name]).length} tools loaded`,
-      );
+      const allTools = await bridge.getMastraTools();
+
+      // Filter out disabled tools if configured
+      const serverConfig = filteredMcpServers[name];
+      if (serverConfig?.disabledTools && serverConfig.disabledTools.length > 0) {
+        const disabledSet = new Set(serverConfig.disabledTools);
+        toolCaches[name] = Object.fromEntries(
+          Object.entries(allTools).filter(([toolName]) => !disabledSet.has(toolName))
+        );
+        const filteredCount = Object.keys(allTools).length - Object.keys(toolCaches[name]).length;
+        console.log(
+          `    ✅ ${Object.keys(toolCaches[name]).length} tools loaded (${filteredCount} filtered)`,
+        );
+      } else {
+        toolCaches[name] = allTools;
+        console.log(
+          `    ✅ ${Object.keys(toolCaches[name]).length} tools loaded`,
+        );
+      }
     }
   }
 

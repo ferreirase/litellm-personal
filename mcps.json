@@ -3,7 +3,7 @@
     "claude-context": {
       "command": "npx",
       "args": ["-y", "@zilliz/claude-context-mcp"],
-      "disabled": true
+      "disabled": false
     },
     "serena": {
       "command": "uvx",
@@ -12,8 +12,26 @@
         "git+https://github.com/oraios/serena",
         "serena",
         "start-mcp-server",
-        "--project-path",
+        "--project",
         "/data/Estudos/AI/stdio2sse"
+      ],
+      "disabledTools": [
+        "read_file",
+        "list_dir",
+        "create_text_file",
+        "find_file",
+        "search_for_pattern",
+        "replace_regex",
+        "execute_shell_command",
+        "get_current_config",
+        "initial_instructions",
+        "prepare_for_new_conversation",
+        "remove_project",
+        "summarize_changes",
+        "switch_modes",
+        "think_about_collected_information",
+        "think_about_task_adherence",
+        "think_about_whether_you_are_done"
       ]
     },
     "desktop-commander": {
