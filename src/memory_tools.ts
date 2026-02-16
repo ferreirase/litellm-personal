@@ -1,10 +1,11 @@
-
 import { Memory } from "@mastra/memory";
 import { PostgresStore } from "@mastra/pg";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-const databaseUrl = process.env.DATABASE_URL || "postgresql://mastra:mastra_password@localhost:5433/mastra_memory";
+const databaseUrl =
+  process.env.DATABASE_URL ||
+  "postgresql://mastra:mastra_password@localhost:5433/mastra_memory";
 
 const storage = new PostgresStore({
   id: "mastra-memory-postgres",
@@ -68,21 +69,33 @@ export const addMessages = createTool({
   inputSchema: z.object({
     threadId: z.string().describe("Thread/session ID"),
     resourceId: z.string().optional().describe("Associated resource ID"),
-    messages: z.array(z.object({
-      role: z.enum(["user", "assistant", "system"]),
-      content: z.string(),
-    })).describe("Array of messages to add"),
+    messages: z
+      .array(
+        z.object({
+          role: z.enum(["user", "assistant", "system"]),
+          content: z.string(),
+        }),
+      )
+      .describe("Array of messages to add"),
     metadata: z.record(z.any()).optional().describe("Optional metadata"),
   }),
   execute: async ({ threadId, messages, resourceId, metadata }) => {
     const resId = resourceId || "default-resource";
     const messagesToSave = messages.map((msg: any) => ({
-      id: memory.generateId({ idType: "message", threadId, resourceId: resId, role: msg.role }),
+      id: memory.generateId({
+        idType: "message",
+        threadId,
+        resourceId: resId,
+        role: msg.role,
+      }),
       threadId,
       resourceId: resId,
       role: msg.role === "system" ? "user" : msg.role,
       createdAt: new Date(),
-      content: { format: 2 as const, parts: [{ type: "text" as const, text: msg.content }] },
+      content: {
+        format: 2 as const,
+        parts: [{ type: "text" as const, text: msg.content }],
+      },
     }));
     await memory.saveMessages({ messages: messagesToSave });
     return { success: true, count: messages.length };
@@ -94,7 +107,11 @@ export const getMessages = createTool({
   description: "Retrieve messages from a thread",
   inputSchema: z.object({
     threadId: z.string().describe("Thread/session ID"),
-    limit: z.number().optional().default(50).describe("Limit of recent messages"),
+    limit: z
+      .number()
+      .optional()
+      .default(50)
+      .describe("Limit of recent messages"),
   }),
   execute: async ({ threadId, limit }) => {
     const result = await memory.recall({ threadId, perPage: limit });
@@ -102,7 +119,10 @@ export const getMessages = createTool({
       messages: result.messages.map((msg: any) => ({
         id: msg.id,
         role: msg.role,
-        content: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content),
+        content:
+          typeof msg.content === "string"
+            ? msg.content
+            : JSON.stringify(msg.content),
         createdAt: msg.createdAt,
       })),
       usage: result.usage,
@@ -113,7 +133,9 @@ export const getMessages = createTool({
 export const deleteThread = createTool({
   id: "memory_delete_thread",
   description: "Delete a conversation thread",
-  inputSchema: z.object({ threadId: z.string().describe("Thread ID to delete") }),
+  inputSchema: z.object({
+    threadId: z.string().describe("Thread ID to delete"),
+  }),
   execute: async ({ threadId }) => {
     await memory.deleteThread(threadId);
     return { success: true };
@@ -132,24 +154,35 @@ export const listThreads = createTool({
 
 export const getContext = createTool({
   id: "memory_get_context",
-  description: "Get compressed context including observations and reflections from Observational Memory",
+  description:
+    "Get compressed context including observations and reflections from Observational Memory",
   inputSchema: z.object({
     threadId: z.string().describe("Thread/session ID"),
-    resourceId: z.string().optional().describe("Resource ID for resource scope"),
+    resourceId: z
+      .string()
+      .optional()
+      .describe("Resource ID for resource scope"),
     limit: z.number().optional().default(50).describe("Recent messages limit"),
-    includeObservations: z.boolean().optional().default(true).describe("Include OM observations"),
+    includeObservations: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe("Include OM observations"),
   }),
   execute: async ({ threadId, resourceId, limit, includeObservations }) => {
     const messagesResult = await memory.recall({ threadId, perPage: limit });
     let observations = null;
     if (includeObservations) {
-        try {
-            const store = await (memory as any).getMemoryStore();
-            const scopeId = resourceId || threadId;
-            const scopeType = resourceId ? "resource" : "thread";
-            const omRecord = await store.getObservationalMemory({ scopeId, scopeType });
-            if (omRecord) observations = omRecord.observations;
-        } catch {}
+      try {
+        const store = await (memory as any).getMemoryStore();
+        const scopeId = resourceId || threadId;
+        const scopeType = resourceId ? "resource" : "thread";
+        const omRecord = await store.getObservationalMemory({
+          scopeId,
+          scopeType,
+        });
+        if (omRecord) observations = omRecord.observations;
+      } catch {}
     }
     return { messages: messagesResult.messages, observations };
   },
@@ -160,26 +193,36 @@ export const getObservations = createTool({
   description: "Get observations from Observational Memory",
   inputSchema: z.object({
     threadId: z.string().optional().describe("Thread ID for thread scope"),
-    resourceId: z.string().optional().describe("Resource ID for resource scope"),
+    resourceId: z
+      .string()
+      .optional()
+      .describe("Resource ID for resource scope"),
   }),
   execute: async ({ threadId, resourceId }) => {
     const store = await (memory as any).getMemoryStore();
     const scopeId = resourceId || threadId;
     if (!scopeId) throw new Error("threadId or resourceId required");
-    const omRecord = await store.getObservationalMemory({ scopeId, scopeType: resourceId ? "resource" : "thread" });
+    const omRecord = await store.getObservationalMemory({
+      scopeId,
+      scopeType: resourceId ? "resource" : "thread",
+    });
     return { observations: omRecord?.observations || null };
   },
 });
 
 export const observeNow = createTool({
   id: "memory_observe_now",
-  description: "Check Observational Memory status and trigger observation if needed",
+  description:
+    "Check Observational Memory status and trigger observation if needed",
   inputSchema: z.object({
     threadId: z.string().describe("Thread ID to observe"),
     resourceId: z.string().optional().describe("Resource ID"),
   }),
   execute: async ({ threadId, resourceId }) => {
-    return { message: "Observational Memory is running automatically in background", threadId };
+    return {
+      message: "Observational Memory is running automatically in background",
+      threadId,
+    };
   },
 });
 

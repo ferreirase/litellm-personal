@@ -4,7 +4,6 @@ import cors from "cors";
 import { randomUUID } from "crypto";
 import { MCPServer } from "@mastra/mcp";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { backlogTools, backlogResources } from "./backlog_tools.js";
 import { memoryTools } from "./memory_tools.js";
 import { StdioBridge } from "./bridge.js";
 import { readFileSync } from "fs";
@@ -35,9 +34,8 @@ Object.keys(filteredMcpServers).forEach((name) => {
   console.log(`  ✅ ${name}`);
 });
 
-// Segment enablement from ENV (for native modules)
+// Segment enablement from ENV (for native modules only)
 const nativeSegments = {
-  backlog: process.env.ENABLE_BACKLOG !== "false",
   memory: process.env.ENABLE_MEMORY !== "false",
 };
 
@@ -197,12 +195,7 @@ app.get("/health", (req, res) => {
       status.segments[name] = {
         enabled: true,
         activeSessions: sessionStores[name].size,
-        tools:
-          name === "backlog"
-            ? Object.keys(backlogTools).length
-            : name === "memory"
-              ? Object.keys(memoryTools).length
-              : 0,
+        tools: name === "memory" ? Object.keys(memoryTools).length : 0,
         url: `/${name}/mcp`,
       };
     } else {
@@ -253,10 +246,6 @@ async function initializeSegments() {
   console.log("\n🎯 Initializing Segments...\n");
 
   // Initialize native segments
-  if (nativeSegments.backlog) {
-    createSegmentRoute("backlog", backlogTools, backlogResources);
-  }
-
   if (nativeSegments.memory) {
     createSegmentRoute("memory", memoryTools);
   }

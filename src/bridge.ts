@@ -32,14 +32,26 @@ export class StdioBridge {
    * List of parameter keys that should be treated as file paths
    */
   private pathKeys = [
-    'path', 'file_path', 'filePath', 'filepath',
-    'directory', 'dir', 'folder',
-    'source', 'destination', 'dest',
-    'oldPath', 'newPath',
-    'from', 'to',
-    'source_path', 'target_path',
-    'working_directory', 'cwd',
-    'absolute_path', 'relative_path'
+    "path",
+    "file_path",
+    "filePath",
+    "filepath",
+    "directory",
+    "dir",
+    "folder",
+    "source",
+    "destination",
+    "dest",
+    "oldPath",
+    "newPath",
+    "from",
+    "to",
+    "source_path",
+    "target_path",
+    "working_directory",
+    "cwd",
+    "absolute_path",
+    "relative_path",
   ];
 
   /**
@@ -48,25 +60,27 @@ export class StdioBridge {
    */
   private convertAllPathsToContainer(params: any, key?: string): any {
     // If it's a string and the key is a known path field, convert it
-    if (typeof params === 'string') {
+    if (typeof params === "string") {
       if (key && this.pathKeys.includes(key)) {
         return this.convertSinglePath(params);
       }
       return params;
     }
-    
+
     if (Array.isArray(params)) {
-      return params.map((item, index) => this.convertAllPathsToContainer(item, `${key}[${index}]`));
+      return params.map((item, index) =>
+        this.convertAllPathsToContainer(item, `${key}[${index}]`),
+      );
     }
-    
-    if (typeof params === 'object' && params !== null) {
+
+    if (typeof params === "object" && params !== null) {
       const converted: any = {};
       for (const [objKey, value] of Object.entries(params)) {
         converted[objKey] = this.convertAllPathsToContainer(value, objKey);
       }
       return converted;
     }
-    
+
     return params;
   }
 
@@ -88,7 +102,7 @@ export class StdioBridge {
     }
 
     // Relative path? Resolve against basePath
-    if (!path.isAbsolute(inputPath) || inputPath.startsWith('.')) {
+    if (!path.isAbsolute(inputPath) || inputPath.startsWith(".")) {
       const resolved = path.resolve(this.basePath, inputPath);
       this.logPathConversion(inputPath, resolved, "relative→absolute");
       return resolved;
@@ -105,25 +119,31 @@ export class StdioBridge {
    */
   private logPathConversion(from: string, to: string, type: string): void {
     if (this.debug) {
-      console.log(`🔄 [${this.options.command}] Path ${type}: "${from}" → "${to}"`);
+      console.log(
+        `🔄 [${this.options.command}] Path ${type}: "${from}" → "${to}"`,
+      );
     }
   }
 
   async start(): Promise<void> {
-    console.log(`🚀 Starting Stdio Bridge: ${this.options.command} ${this.options.args.join(" ")}`);
+    console.log(
+      `🚀 Starting Stdio Bridge: ${this.options.command} ${this.options.args.join(" ")}`,
+    );
     console.log(`   Base Path: ${this.basePath}`);
-    console.log(`   Host Root: ${this.hostRoot} → Container: ${this.containerData}`);
-    console.log(`   Debug Mode: ${this.debug ? 'ON' : 'OFF'}`);
+    console.log(
+      `   Host Root: ${this.hostRoot} → Container: ${this.containerData}`,
+    );
+    console.log(`   Debug Mode: ${this.debug ? "ON" : "OFF"}`);
 
     this.process = spawn(this.options.command, this.options.args, {
-      env: { 
-        ...process.env, 
+      env: {
+        ...process.env,
         ...this.options.env,
         HOST_ROOT: this.hostRoot,
-        CONTAINER_DATA: this.containerData
+        CONTAINER_DATA: this.containerData,
       },
       shell: true,
-      cwd: this.basePath
+      cwd: this.basePath,
     });
 
     this.process.stdout?.on("data", (data) => {
@@ -170,10 +190,11 @@ export class StdioBridge {
 
   async request(method: string, params: any): Promise<any> {
     if (!this.process) await this.start();
-    
+
     const id = this.messageId++;
-    const request = JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
-    
+    const request =
+      JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
+
     return new Promise((resolve) => {
       this.pendingRequests.set(id, resolve);
       this.process?.stdin?.write(request);
@@ -192,91 +213,131 @@ export class StdioBridge {
     const remoteTools = await this.listTools();
     const tools: Record<string, any> = {};
 
-    console.log(`🔧 [${this.options.command}] Creating ${remoteTools.length} Mastra tools...`);
+    console.log(
+      `🔧 [${this.options.command}] Creating ${remoteTools.length} Mastra tools...`,
+    );
 
     for (const tool of remoteTools) {
       console.log(`   Creating tool: ${tool.name}`);
-      
+
       tools[tool.name] = createTool({
         id: tool.name,
         description: tool.description,
         inputSchema: z.object({}).passthrough(),
         execute: async (input: any, context: any) => {
           // EXTENSIVE DEBUG LOGGING - Phase 1 Diagnosis
-          console.log(`\n🔍 [${this.options.command}] TOOL CALL DEBUG: ${tool.name}`);
-          console.log(`═══════════════════════════════════════════════════════`);
+          console.log(
+            `\n🔍 [${this.options.command}] TOOL CALL DEBUG: ${tool.name}`,
+          );
+          console.log(
+            `═══════════════════════════════════════════════════════`,
+          );
           console.log(`1. Raw input parameter:`);
           console.log(`   Type: ${typeof input}`);
           console.log(`   Value: ${JSON.stringify(input, null, 2)}`);
           console.log(`   Is null: ${input === null}`);
           console.log(`   Is undefined: ${input === undefined}`);
-          console.log(`   Is object: ${typeof input === 'object'}`);
-          
-          if (input && typeof input === 'object') {
-            console.log(`   Keys: [${Object.keys(input).join(', ')}]`);
-            console.log(`   Has 'arguments' key: ${'arguments' in input}`);
-            console.log(`   Has 'params' key: ${'params' in input}`);
-            
-            if ('arguments' in input) {
-              console.log(`   input.arguments: ${JSON.stringify(input.arguments)}`);
+          console.log(`   Is object: ${typeof input === "object"}`);
+
+          if (input && typeof input === "object") {
+            console.log(`   Keys: [${Object.keys(input).join(", ")}]`);
+            console.log(`   Has 'arguments' key: ${"arguments" in input}`);
+            console.log(`   Has 'params' key: ${"params" in input}`);
+
+            if ("arguments" in input) {
+              console.log(
+                `   input.arguments: ${JSON.stringify(input.arguments)}`,
+              );
             }
           }
-          
+
           console.log(`\n2. Context parameter:`);
           console.log(`   Type: ${typeof context}`);
           console.log(`   Value: ${JSON.stringify(context, null, 2)}`);
-          
+
           // Check if params are in input.arguments (MCP format) or directly in input
           let actualParams = input;
-          if (input && typeof input === 'object' && 'arguments' in input && input.arguments) {
-            console.log(`\n3. Detected MCP format - extracting from input.arguments`);
+          if (
+            input &&
+            typeof input === "object" &&
+            "arguments" in input &&
+            input.arguments
+          ) {
+            console.log(
+              `\n3. Detected MCP format - extracting from input.arguments`,
+            );
             actualParams = input.arguments;
-          } else if (input && typeof input === 'object' && Object.keys(input).length === 0) {
-            console.log(`\n3. Input is empty object - checking if params are elsewhere`);
+          } else if (
+            input &&
+            typeof input === "object" &&
+            Object.keys(input).length === 0
+          ) {
+            console.log(
+              `\n3. Input is empty object - checking if params are elsewhere`,
+            );
             // Try to find params in context or other locations
-            if (context && typeof context === 'object') {
-              console.log(`   Context keys: [${Object.keys(context).join(', ')}]`);
-              if ('params' in context) {
+            if (context && typeof context === "object") {
+              console.log(
+                `   Context keys: [${Object.keys(context).join(", ")}]`,
+              );
+              if ("params" in context) {
                 actualParams = context.params;
-                console.log(`   Found params in context: ${JSON.stringify(actualParams)}`);
+                console.log(
+                  `   Found params in context: ${JSON.stringify(actualParams)}`,
+                );
               }
             }
           }
-          
+
           console.log(`\n4. Actual params to use:`);
           console.log(`   Type: ${typeof actualParams}`);
           console.log(`   Value: ${JSON.stringify(actualParams, null, 2)}`);
-          console.log(`   Keys: [${Object.keys((actualParams as any) || {}).join(', ')}]`);
-          console.log(`═══════════════════════════════════════════════════════\n`);
-          
+          console.log(
+            `   Keys: [${Object.keys((actualParams as any) || {}).join(", ")}]`,
+          );
+          console.log(
+            `═══════════════════════════════════════════════════════\n`,
+          );
+
           if (!actualParams || Object.keys(actualParams as any).length === 0) {
-            console.error(`❌ [${this.options.command}] ERROR: No valid parameters found for ${tool.name}`);
-            throw new Error(`Empty or invalid input received for tool ${tool.name}`);
+            console.error(
+              `❌ [${this.options.command}] ERROR: No valid parameters found for ${tool.name}`,
+            );
+            throw new Error(
+              `Empty or invalid input received for tool ${tool.name}`,
+            );
           }
-          
+
           // Convert all paths to container format
           const convertedInput = this.convertAllPathsToContainer(actualParams);
-          
+
           console.log(`   Converted Input: ${JSON.stringify(convertedInput)}`);
-          
+
           const res = await this.request("tools/call", {
             name: tool.name,
             arguments: convertedInput,
           });
-          
-          console.log(`📥 [${this.options.command}] Response: ${JSON.stringify(res).substring(0, 200)}...`);
-          
+
+          console.log(
+            `📥 [${this.options.command}] Response: ${JSON.stringify(res).substring(0, 200)}...`,
+          );
+
           if (res.error) {
-            console.error(`❌ [${this.options.command}] Tool error:`, res.error);
+            console.error(
+              `❌ [${this.options.command}] Tool error:`,
+              res.error,
+            );
             throw new Error(res.error.message);
           }
-          
+
           return res.result;
         },
       });
     }
 
-    console.log(`✅ [${this.options.command}] Created ${Object.keys(tools).length} tools`);
+    console.log(
+      `✅ [${this.options.command}] Created ${Object.keys(tools).length} tools`,
+    );
     return tools;
   }
 

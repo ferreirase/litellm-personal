@@ -1,4 +1,3 @@
-
 const HOST_ROOT = process.env.HOST_ROOT || "/home/ferreirase/Documents";
 const CONTAINER_DATA = "/data";
 const DEFAULT_PROJECT_PATH = process.env.DEFAULT_PROJECT_PATH || HOST_ROOT;

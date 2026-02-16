@@ -1,4 +1,3 @@
-
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { exec } from "child_process";
@@ -11,12 +10,15 @@ const execAsync = promisify(exec);
 
 const checkInit = (cwd: string) => {
   if (!existsSync(join(cwd, "backlog"))) {
-    throw new Error(`No Backlog.md project found at ${cwd}. Please run 'init-project' first.`);
+    throw new Error(
+      `No Backlog.md project found at ${cwd}. Please run 'init-project' first.`,
+    );
   }
 };
 
 const escapeCmd = (val: string) => `"${val.replace(/"/g, '\\"')}"`;
-const pathDescription = "Absolute host path of the project. Sticky: remembered for subsequent calls.";
+const pathDescription =
+  "Absolute host path of the project. Sticky: remembered for subsequent calls.";
 
 // --- Tasks ---
 
@@ -27,7 +29,10 @@ export const taskList = createTool({
     path: z.string().optional().describe(pathDescription),
     status: z.string().optional().describe("Filter by status"),
     assignee: z.string().optional().describe("Filter by assignee"),
-    priority: z.enum(["high", "medium", "low"]).optional().describe("Filter by priority"),
+    priority: z
+      .enum(["high", "medium", "low"])
+      .optional()
+      .describe("Filter by priority"),
   }),
   execute: async ({ path, status, assignee, priority }, context) => {
     const sessionId = sessionManager.getSessionId(context);
@@ -58,7 +63,10 @@ export const taskView = createTool({
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
       checkInit(cwd);
-      const { stdout } = await execAsync(`backlog tasks view ${taskId} --plain`, { cwd, timeout: 10000 });
+      const { stdout } = await execAsync(
+        `backlog tasks view ${taskId} --plain`,
+        { cwd, timeout: 10000 },
+      );
       return { details: stdout || "Task not found" };
     } catch (error: any) {
       return { error: error.message };
@@ -84,7 +92,24 @@ export const taskCreate = createTool({
     parent_id: z.string().optional(),
     is_draft: z.boolean().optional(),
   }),
-  execute: async ({ title, path, description, status, priority, assignees, labels, plan, acceptance_criteria, notes, dependencies, parent_id, is_draft }, context) => {
+  execute: async (
+    {
+      title,
+      path,
+      description,
+      status,
+      priority,
+      assignees,
+      labels,
+      plan,
+      acceptance_criteria,
+      notes,
+      dependencies,
+      parent_id,
+      is_draft,
+    },
+    context,
+  ) => {
     const sessionId = sessionManager.getSessionId(context);
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
@@ -93,12 +118,17 @@ export const taskCreate = createTool({
       if (description) cmd += ` --description ${escapeCmd(description)}`;
       if (status) cmd += ` --status ${escapeCmd(status)}`;
       if (priority) cmd += ` --priority ${priority}`;
-      if (assignees) assignees.forEach((a: string) => (cmd += ` -a ${escapeCmd(a)}`));
+      if (assignees)
+        assignees.forEach((a: string) => (cmd += ` -a ${escapeCmd(a)}`));
       if (labels) labels.forEach((l: string) => (cmd += ` -l ${escapeCmd(l)}`));
       if (plan) cmd += ` --plan ${escapeCmd(plan)}`;
-      if (acceptance_criteria) acceptance_criteria.forEach((ac: string) => (cmd += ` --ac ${escapeCmd(ac)}`));
+      if (acceptance_criteria)
+        acceptance_criteria.forEach(
+          (ac: string) => (cmd += ` --ac ${escapeCmd(ac)}`),
+        );
       if (notes) cmd += ` --notes ${escapeCmd(notes)}`;
-      if (dependencies) dependencies.forEach((d: string) => (cmd += ` --dep ${escapeCmd(d)}`));
+      if (dependencies)
+        dependencies.forEach((d: string) => (cmd += ` --dep ${escapeCmd(d)}`));
       if (parent_id) cmd += ` --parent ${escapeCmd(parent_id)}`;
       if (is_draft) cmd += ` --draft`;
       const { stdout } = await execAsync(cmd, { cwd, timeout: 15000 });
@@ -127,7 +157,24 @@ export const taskEdit = createTool({
     dependencies: z.array(z.string()).optional(),
     parent_id: z.string().optional(),
   }),
-  execute: async ({ taskId, path, title, description, status, priority, assignees, labels, plan, acceptance_criteria, notes, dependencies, parent_id }, context) => {
+  execute: async (
+    {
+      taskId,
+      path,
+      title,
+      description,
+      status,
+      priority,
+      assignees,
+      labels,
+      plan,
+      acceptance_criteria,
+      notes,
+      dependencies,
+      parent_id,
+    },
+    context,
+  ) => {
     const sessionId = sessionManager.getSessionId(context);
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
@@ -137,12 +184,15 @@ export const taskEdit = createTool({
       if (description) cmd += ` --description ${escapeCmd(description)}`;
       if (status) cmd += ` --status ${escapeCmd(status)}`;
       if (priority) cmd += ` --priority ${priority}`;
-      if (assignees) assignees.forEach((a: string) => (cmd += ` -a ${escapeCmd(a)}`));
+      if (assignees)
+        assignees.forEach((a: string) => (cmd += ` -a ${escapeCmd(a)}`));
       if (labels) labels.forEach((l: string) => (cmd += ` -l ${escapeCmd(l)}`));
       if (plan) cmd += ` --plan ${escapeCmd(plan)}`;
-      if (acceptance_criteria) cmd += ` --acceptance-criteria ${escapeCmd(acceptance_criteria.join(","))}`;
+      if (acceptance_criteria)
+        cmd += ` --acceptance-criteria ${escapeCmd(acceptance_criteria.join(","))}`;
       if (notes) cmd += ` --notes ${escapeCmd(notes)}`;
-      if (dependencies) dependencies.forEach((d: string) => cmd += ` --dep ${escapeCmd(d)}`);
+      if (dependencies)
+        dependencies.forEach((d: string) => (cmd += ` --dep ${escapeCmd(d)}`));
       if (parent_id) cmd += ` --parent ${escapeCmd(parent_id)}`;
       const { stdout } = await execAsync(cmd, { cwd, timeout: 15000 });
       return { result: stdout || "Task edited" };
@@ -164,7 +214,10 @@ export const taskComplete = createTool({
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
       checkInit(cwd);
-      const { stdout } = await execAsync(`backlog tasks complete ${taskId}`, { cwd, timeout: 10000 });
+      const { stdout } = await execAsync(`backlog tasks complete ${taskId}`, {
+        cwd,
+        timeout: 10000,
+      });
       return { result: stdout || "Task completed" };
     } catch (error: any) {
       return { error: error.message };
@@ -184,7 +237,10 @@ export const taskArchive = createTool({
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
       checkInit(cwd);
-      const { stdout } = await execAsync(`backlog tasks archive ${taskId}`, { cwd, timeout: 10000 });
+      const { stdout } = await execAsync(`backlog tasks archive ${taskId}`, {
+        cwd,
+        timeout: 10000,
+      });
       return { result: stdout || "Task archived" };
     } catch (error: any) {
       return { error: error.message };
@@ -204,7 +260,10 @@ export const taskSearch = createTool({
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
       checkInit(cwd);
-      const { stdout } = await execAsync(`backlog tasks search ${escapeCmd(query)} --plain`, { cwd, timeout: 10000 });
+      const { stdout } = await execAsync(
+        `backlog tasks search ${escapeCmd(query)} --plain`,
+        { cwd, timeout: 10000 },
+      );
       return { tasks: stdout || "No tasks found" };
     } catch (error: any) {
       return { error: error.message };
@@ -225,7 +284,10 @@ export const documentList = createTool({
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
       checkInit(cwd);
-      const { stdout } = await execAsync("backlog doc list --plain", { cwd, timeout: 10000 });
+      const { stdout } = await execAsync("backlog doc list --plain", {
+        cwd,
+        timeout: 10000,
+      });
       return { docs: stdout || "No documents found" };
     } catch (error: any) {
       return { error: error.message };
@@ -247,7 +309,9 @@ export const documentView = createTool({
       checkInit(cwd);
       const docsDir = join(cwd, "backlog", "docs");
       const files = readdirSync(docsDir);
-      const docFile = files.find((f) => f.startsWith(`${docId} - `) || f === `${docId}.md`);
+      const docFile = files.find(
+        (f) => f.startsWith(`${docId} - `) || f === `${docId}.md`,
+      );
       if (!docFile) throw new Error("Doc not found");
       const content = readFileSync(join(docsDir, docFile), "utf-8");
       return { content };
@@ -317,7 +381,10 @@ export const documentSearch = createTool({
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
       checkInit(cwd);
-      const { stdout } = await execAsync(`backlog doc search ${escapeCmd(query)} --plain`, { cwd, timeout: 10000 });
+      const { stdout } = await execAsync(
+        `backlog doc search ${escapeCmd(query)} --plain`,
+        { cwd, timeout: 10000 },
+      );
       return { docs: stdout || "No docs found" };
     } catch (error: any) {
       return { error: error.message };
@@ -338,7 +405,10 @@ export const milestoneList = createTool({
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
       checkInit(cwd);
-      const { stdout } = await execAsync("backlog milestone list", { cwd, timeout: 10000 });
+      const { stdout } = await execAsync("backlog milestone list", {
+        cwd,
+        timeout: 10000,
+      });
       return { milestones: stdout || "No milestones found" };
     } catch (error: any) {
       return { error: error.message };
@@ -358,7 +428,10 @@ export const milestoneAdd = createTool({
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
       checkInit(cwd);
-      const { stdout } = await execAsync(`backlog milestone add ${escapeCmd(name)}`, { cwd, timeout: 10000 });
+      const { stdout } = await execAsync(
+        `backlog milestone add ${escapeCmd(name)}`,
+        { cwd, timeout: 10000 },
+      );
       return { result: stdout || "Milestone added" };
     } catch (error: any) {
       return { error: error.message };
@@ -379,7 +452,10 @@ export const milestoneRename = createTool({
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
       checkInit(cwd);
-      const { stdout } = await execAsync(`backlog milestone rename ${escapeCmd(oldName)} ${escapeCmd(newName)}`, { cwd, timeout: 10000 });
+      const { stdout } = await execAsync(
+        `backlog milestone rename ${escapeCmd(oldName)} ${escapeCmd(newName)}`,
+        { cwd, timeout: 10000 },
+      );
       return { result: stdout || "Milestone renamed" };
     } catch (error: any) {
       return { error: error.message };
@@ -399,7 +475,10 @@ export const milestoneRemove = createTool({
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
       checkInit(cwd);
-      const { stdout } = await execAsync(`backlog milestone remove ${escapeCmd(name)}`, { cwd, timeout: 10000 });
+      const { stdout } = await execAsync(
+        `backlog milestone remove ${escapeCmd(name)}`,
+        { cwd, timeout: 10000 },
+      );
       return { result: stdout || "Milestone removed" };
     } catch (error: any) {
       return { error: error.message };
@@ -412,56 +491,84 @@ export const milestoneRemove = createTool({
 export const getWorkflowOverview = createTool({
   id: "get_workflow_overview",
   description: "Returns the general workflow overview for the project.",
-  inputSchema: z.object({ path: z.string().optional().describe(pathDescription) }),
+  inputSchema: z.object({
+    path: z.string().optional().describe(pathDescription),
+  }),
   execute: async ({ path }, context) => {
     const sessionId = sessionManager.getSessionId(context);
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
-      const { stdout } = await execAsync("backlog workflow overview", { cwd, timeout: 10000 });
+      const { stdout } = await execAsync("backlog workflow overview", {
+        cwd,
+        timeout: 10000,
+      });
       return { content: stdout };
-    } catch (error: any) { return { error: error.message }; }
+    } catch (error: any) {
+      return { error: error.message };
+    }
   },
 });
 
 export const getTaskCreationGuide = createTool({
   id: "get_task_creation_guide",
   description: "Returns the guide for creating tasks.",
-  inputSchema: z.object({ path: z.string().optional().describe(pathDescription) }),
+  inputSchema: z.object({
+    path: z.string().optional().describe(pathDescription),
+  }),
   execute: async ({ path }, context) => {
     const sessionId = sessionManager.getSessionId(context);
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
-      const { stdout } = await execAsync("backlog workflow task-creation", { cwd, timeout: 10000 });
+      const { stdout } = await execAsync("backlog workflow task-creation", {
+        cwd,
+        timeout: 10000,
+      });
       return { content: stdout };
-    } catch (error: any) { return { error: error.message }; }
+    } catch (error: any) {
+      return { error: error.message };
+    }
   },
 });
 
 export const getTaskExecutionGuide = createTool({
   id: "get_task_execution_guide",
   description: "Returns the guide for executing tasks.",
-  inputSchema: z.object({ path: z.string().optional().describe(pathDescription) }),
+  inputSchema: z.object({
+    path: z.string().optional().describe(pathDescription),
+  }),
   execute: async ({ path }, context) => {
     const sessionId = sessionManager.getSessionId(context);
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
-      const { stdout } = await execAsync("backlog workflow task-execution", { cwd, timeout: 10000 });
+      const { stdout } = await execAsync("backlog workflow task-execution", {
+        cwd,
+        timeout: 10000,
+      });
       return { content: stdout };
-    } catch (error: any) { return { error: error.message }; }
+    } catch (error: any) {
+      return { error: error.message };
+    }
   },
 });
 
 export const getTaskCompletionGuide = createTool({
   id: "get_task_completion_guide",
   description: "Returns the guide for completing tasks.",
-  inputSchema: z.object({ path: z.string().optional().describe(pathDescription) }),
+  inputSchema: z.object({
+    path: z.string().optional().describe(pathDescription),
+  }),
   execute: async ({ path }, context) => {
     const sessionId = sessionManager.getSessionId(context);
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     try {
-      const { stdout } = await execAsync("backlog workflow task-completion", { cwd, timeout: 10000 });
+      const { stdout } = await execAsync("backlog workflow task-completion", {
+        cwd,
+        timeout: 10000,
+      });
       return { content: stdout };
-    } catch (error: any) { return { error: error.message }; }
+    } catch (error: any) {
+      return { error: error.message };
+    }
   },
 });
 
@@ -479,7 +586,10 @@ export const initProjectTool = createTool({
     const cwd = sessionManager.getEffectivePath(sessionId, path);
     const name = projectName || basename(cwd);
     try {
-      const { stdout } = await execAsync(`backlog init ${escapeCmd(name)} --defaults`, { cwd, timeout: 25000 });
+      const { stdout } = await execAsync(
+        `backlog init ${escapeCmd(name)} --defaults`,
+        { cwd, timeout: 25000 },
+      );
       return { success: true, message: stdout || "Project initialized" };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -490,17 +600,37 @@ export const initProjectTool = createTool({
 // Backlog Resources (Workflow Guides)
 export const backlogResources = {
   listResources: async () => [
-    { uri: "backlog://workflow/overview", name: "Backlog Workflow Overview", mimeType: "text/markdown" },
-    { uri: "backlog://workflow/task-creation", name: "Task Creation Guide", mimeType: "text/markdown" },
-    { uri: "backlog://workflow/task-execution", name: "Task Execution Guide", mimeType: "text/markdown" },
-    { uri: "backlog://workflow/task-completion", name: "Task Completion Guide", mimeType: "text/markdown" },
+    {
+      uri: "backlog://workflow/overview",
+      name: "Backlog Workflow Overview",
+      mimeType: "text/markdown",
+    },
+    {
+      uri: "backlog://workflow/task-creation",
+      name: "Task Creation Guide",
+      mimeType: "text/markdown",
+    },
+    {
+      uri: "backlog://workflow/task-execution",
+      name: "Task Execution Guide",
+      mimeType: "text/markdown",
+    },
+    {
+      uri: "backlog://workflow/task-completion",
+      name: "Task Completion Guide",
+      mimeType: "text/markdown",
+    },
   ],
   getResourceContent: async ({ uri }: { uri: string }) => {
     const contents: Record<string, string> = {
-      "backlog://workflow/overview": "# Backlog Workflow Overview\n\nThis guide covers the overall workflow...",
-      "backlog://workflow/task-creation": "# Task Creation Guide\n\nBest practices for creating tasks...",
-      "backlog://workflow/task-execution": "# Task Execution Guide\n\nHow to execute tasks effectively...",
-      "backlog://workflow/task-completion": "# Task Completion Guide\n\nSteps to complete and archive tasks...",
+      "backlog://workflow/overview":
+        "# Backlog Workflow Overview\n\nThis guide covers the overall workflow...",
+      "backlog://workflow/task-creation":
+        "# Task Creation Guide\n\nBest practices for creating tasks...",
+      "backlog://workflow/task-execution":
+        "# Task Execution Guide\n\nHow to execute tasks effectively...",
+      "backlog://workflow/task-completion":
+        "# Task Completion Guide\n\nSteps to complete and archive tasks...",
     };
     const text = contents[uri];
     if (!text) throw new Error(`Resource not found: ${uri}`);
