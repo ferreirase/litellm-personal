@@ -13,9 +13,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Read .mcp.json configuration
+// Read mcps.json configuration
 const mcpConfig = JSON.parse(
-  readFileSync(join(process.cwd(), ".mcp.json"), "utf-8"),
+  readFileSync(join(process.cwd(), "mcps.json"), "utf-8"),
 );
 
 // Filter out serena from config
@@ -29,7 +29,7 @@ Object.entries(mcpConfig.mcpServers).forEach(
   },
 );
 
-console.log("📊 MCP Servers from .mcp.json (excluding serena):");
+console.log("📊 MCP Servers from mcps.json (excluding serena):");
 Object.keys(filteredMcpServers).forEach((name) => {
   console.log(`  ✅ ${name}`);
 });
@@ -39,21 +39,21 @@ const nativeSegments = {
   memory: process.env.ENABLE_MEMORY !== "false",
 };
 
-// Initialize bridges dynamically from .mcp.json
+// Initialize bridges dynamically from mcps.json
 const bridges: Record<string, StdioBridge | null> = {};
 
 Object.entries(filteredMcpServers).forEach(([name, config]: [string, any]) => {
   const envVar = `ENABLE_${name.toUpperCase()}`;
   if (process.env[envVar] !== "false") {
     let env = config.env || {};
-    
+
     if (name === "desktop-commander" && process.env.DESKTOP_BLOCKED_COMMANDS) {
       env = {
         ...env,
         BLOCKED_COMMANDS: process.env.DESKTOP_BLOCKED_COMMANDS,
       };
     }
-    
+
     bridges[name] = new StdioBridge({
       command: config.command,
       args: config.args,
