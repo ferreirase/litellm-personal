@@ -201,20 +201,61 @@ export class StdioBridge {
         id: tool.name,
         description: tool.description,
         inputSchema: z.object({}).passthrough(),
-        execute: async (input) => {
-          // Always log for debugging
-          console.log(`📤 [${this.options.command}] Tool call: ${tool.name}`);
-          console.log(`   Raw Input: ${JSON.stringify(input)}`);
-          console.log(`   Input type: ${typeof input}`);
-          console.log(`   Input keys: ${input ? Object.keys(input).join(', ') : 'undefined'}`);
+        execute: async (input: any, context: any) => {
+          // EXTENSIVE DEBUG LOGGING - Phase 1 Diagnosis
+          console.log(`\n🔍 [${this.options.command}] TOOL CALL DEBUG: ${tool.name}`);
+          console.log(`═══════════════════════════════════════════════════════`);
+          console.log(`1. Raw input parameter:`);
+          console.log(`   Type: ${typeof input}`);
+          console.log(`   Value: ${JSON.stringify(input, null, 2)}`);
+          console.log(`   Is null: ${input === null}`);
+          console.log(`   Is undefined: ${input === undefined}`);
+          console.log(`   Is object: ${typeof input === 'object'}`);
           
-          if (!input || Object.keys(input).length === 0) {
-            console.error(`❌ [${this.options.command}] ERROR: Empty input received for ${tool.name}`);
-            throw new Error(`Empty input received for tool ${tool.name}`);
+          if (input && typeof input === 'object') {
+            console.log(`   Keys: [${Object.keys(input).join(', ')}]`);
+            console.log(`   Has 'arguments' key: ${'arguments' in input}`);
+            console.log(`   Has 'params' key: ${'params' in input}`);
+            
+            if ('arguments' in input) {
+              console.log(`   input.arguments: ${JSON.stringify(input.arguments)}`);
+            }
+          }
+          
+          console.log(`\n2. Context parameter:`);
+          console.log(`   Type: ${typeof context}`);
+          console.log(`   Value: ${JSON.stringify(context, null, 2)}`);
+          
+          // Check if params are in input.arguments (MCP format) or directly in input
+          let actualParams = input;
+          if (input && typeof input === 'object' && 'arguments' in input && input.arguments) {
+            console.log(`\n3. Detected MCP format - extracting from input.arguments`);
+            actualParams = input.arguments;
+          } else if (input && typeof input === 'object' && Object.keys(input).length === 0) {
+            console.log(`\n3. Input is empty object - checking if params are elsewhere`);
+            // Try to find params in context or other locations
+            if (context && typeof context === 'object') {
+              console.log(`   Context keys: [${Object.keys(context).join(', ')}]`);
+              if ('params' in context) {
+                actualParams = context.params;
+                console.log(`   Found params in context: ${JSON.stringify(actualParams)}`);
+              }
+            }
+          }
+          
+          console.log(`\n4. Actual params to use:`);
+          console.log(`   Type: ${typeof actualParams}`);
+          console.log(`   Value: ${JSON.stringify(actualParams, null, 2)}`);
+          console.log(`   Keys: [${Object.keys((actualParams as any) || {}).join(', ')}]`);
+          console.log(`═══════════════════════════════════════════════════════\n`);
+          
+          if (!actualParams || Object.keys(actualParams as any).length === 0) {
+            console.error(`❌ [${this.options.command}] ERROR: No valid parameters found for ${tool.name}`);
+            throw new Error(`Empty or invalid input received for tool ${tool.name}`);
           }
           
           // Convert all paths to container format
-          const convertedInput = this.convertAllPathsToContainer(input);
+          const convertedInput = this.convertAllPathsToContainer(actualParams);
           
           console.log(`   Converted Input: ${JSON.stringify(convertedInput)}`);
           
