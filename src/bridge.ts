@@ -137,9 +137,6 @@ export class StdioBridge {
 
     // Use shell: false for backlog, true for others
     const useShell = this.options.command !== "backlog";
-    
-    // For backlog, try without cwd to use current working directory
-    const useCwd = this.options.command !== "backlog";
 
     this.process = spawn(this.options.command, this.options.args, {
       env: {
@@ -149,12 +146,12 @@ export class StdioBridge {
         CONTAINER_DATA: this.containerData,
       },
       shell: useShell,
-      cwd: useCwd ? this.basePath : undefined,
+      cwd: this.basePath,
     });
 
     if (this.debug) {
       console.log(`   Process spawned with PID: ${this.process.pid}`);
-      console.log(`   Working directory: ${useCwd ? this.basePath : process.cwd()}`);
+      console.log(`   Working directory: ${this.basePath}`);
     }
 
     this.process.stdout?.on("data", (data) => {
