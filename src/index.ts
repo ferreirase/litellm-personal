@@ -28,40 +28,52 @@ Object.entries(segments).forEach(([name, enabled]) => {
 
 // Initialize bridges for external MCPs
 const bridges = {
-  desktop: segments.desktop ? new StdioBridge({
-    command: "npx",
-    args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
-    env: {
-      ALLOWED_DIRECTORIES: "/data",
-      BLOCKED_COMMANDS: "rm -rf /,dd,mkfs,sudo,su",
-    },
-    basePath: "/data",
-    debug: process.env.DEBUG_PATHS === "true"
-  }) : null,
-  context: segments.context ? new StdioBridge({
-    command: "npx",
-    args: ["@zilliz/claude-context-mcp@latest"],
-    basePath: "/data",
-    debug: process.env.DEBUG_PATHS === "true"
-  }) : null,
-  serena: segments.serena ? new StdioBridge({
-    command: "uvx",
-    args: [
-      "--from", "git+https://github.com/oraios/serena",
-      "serena", "start-mcp-server",
-      "--context", "ide",
-      "--project-from-cwd",
-      "--open-web-dashboard", "False"
-    ],
-    basePath: "/data",
-    debug: process.env.DEBUG_PATHS === "true"
-  }) : null,
-  thinking: segments.thinking ? new StdioBridge({
-    command: "npx",
-    args: ["-y", "@modelcontextprotocol/server-sequential-thinking"],
-    basePath: "/data",
-    debug: process.env.DEBUG_PATHS === "true"
-  }) : null,
+  desktop: segments.desktop
+    ? new StdioBridge({
+        command: "npx",
+        args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+        env: {
+          ALLOWED_DIRECTORIES: "/data",
+          BLOCKED_COMMANDS: "rm -rf /,dd,mkfs,sudo,su",
+        },
+        basePath: "/data",
+        debug: process.env.DEBUG_PATHS === "true",
+      })
+    : null,
+  context: segments.context
+    ? new StdioBridge({
+        command: "npx",
+        args: ["@zilliz/claude-context-mcp@latest"],
+        basePath: "/data",
+        debug: process.env.DEBUG_PATHS === "true",
+      })
+    : null,
+  serena: segments.serena
+    ? new StdioBridge({
+        command: "uvx",
+        args: [
+          "--from",
+          "git+https://github.com/oraios/serena",
+          "serena",
+          "start-mcp-server",
+          "--context",
+          "restricted-ide",
+          "--project-from-cwd",
+          "--open-web-dashboard",
+          "False",
+        ],
+        basePath: "/data",
+        debug: process.env.DEBUG_PATHS === "true",
+      })
+    : null,
+  thinking: segments.thinking
+    ? new StdioBridge({
+        command: "npx",
+        args: ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+        basePath: "/data",
+        debug: process.env.DEBUG_PATHS === "true",
+      })
+    : null,
 };
 
 // Session stores for each segment
@@ -79,31 +91,80 @@ const toolCaches: Record<string, any> = {};
 
 async function loadTools() {
   console.log("\n🔧 Loading Tools...");
-  
+
   if (bridges.desktop) {
     console.log("  Loading Desktop Commander tools...");
     toolCaches.desktop = await bridges.desktop.getMastraTools();
-    console.log(`    ✅ ${Object.keys(toolCaches.desktop).length} tools loaded`);
+    console.log(
+      `    ✅ ${Object.keys(toolCaches.desktop).length} tools loaded`,
+    );
   }
-  
+
   if (bridges.context) {
     console.log("  Loading Claude Context tools...");
     toolCaches.context = await bridges.context.getMastraTools();
-    console.log(`    ✅ ${Object.keys(toolCaches.context).length} tools loaded`);
+    console.log(
+      `    ✅ ${Object.keys(toolCaches.context).length} tools loaded`,
+    );
   }
-  
+
   if (bridges.serena) {
     console.log("  Loading Serena tools...");
     toolCaches.serena = await bridges.serena.getMastraTools();
     console.log(`    ✅ ${Object.keys(toolCaches.serena).length} tools loaded`);
+
+    // Validação de tools bloqueadas
+    const BLOCKED_TOOLS = [
+      "read_file",
+      "create_text_file",
+      "list_dir",
+      "find_file",
+      "search_for_pattern",
+      "replace_regex",
+      "execute_shell_command",
+      "get_current_config",
+      "initial_instructions",
+      "prepare_for_new_conversation",
+      "remove_project",
+      "summarize_changes",
+      "switch_modes",
+      "think_about_collected_information",
+      "think_about_task_adherence",
+      "think_about_whether_you_are_done",
+    ];
+
+    const loadedTools = Object.keys(toolCaches.serena || {});
+    const blockedFound = loadedTools.filter((t) => BLOCKED_TOOLS.includes(t));
+
+    console.log(`\n🔒 Serena Security Check:`);
+    console.log(`   Tools carregadas: ${loadedTools.length}`);
+    console.log(`   Tools na lista de bloqueio: ${BLOCKED_TOOLS.length}`);
+
+    if (blockedFound.length > 0) {
+      console.error(
+        `\n❌ ERRO DE SEGURANÇA: Tools bloqueadas foram carregadas!`,
+      );
+      console.error(`   Tools proibidas ativas: ${blockedFound.join(", ")}`);
+      console.error(`   Verifique a configuração do contexto 'restricted-ide'`);
+      process.exit(1);
+    } else {
+      console.log(
+        `   ✅ Todas as ${BLOCKED_TOOLS.length} tools bloqueadas foram removidas`,
+      );
+      console.log(
+        `   ✅ Apenas ${loadedTools.length} tools simbólicas disponíveis`,
+      );
+    }
   }
-  
+
   if (bridges.thinking) {
     console.log("  Loading Sequential Thinking tools...");
     toolCaches.thinking = await bridges.thinking.getMastraTools();
-    console.log(`    ✅ ${Object.keys(toolCaches.thinking).length} tools loaded`);
+    console.log(
+      `    ✅ ${Object.keys(toolCaches.thinking).length} tools loaded`,
+    );
   }
-  
+
   console.log("\n✨ All tools loaded successfully!\n");
 }
 
@@ -111,7 +172,7 @@ async function loadTools() {
 function createSegmentRoute(
   segmentName: string,
   tools: Record<string, any>,
-  resources?: any
+  resources?: any,
 ) {
   const sessions = sessionStores[segmentName];
 
@@ -119,19 +180,21 @@ function createSegmentRoute(
   app.get(`/${segmentName}/sse`, async (req, res) => {
     try {
       console.log(`📡 [${segmentName}] New connection from ${req.ip}`);
-      
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no');
 
-      console.log(`🔧 [${segmentName}] Creating MCPServer with ${Object.keys(tools).length} tools`);
-      
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+
+      console.log(
+        `🔧 [${segmentName}] Creating MCPServer with ${Object.keys(tools).length} tools`,
+      );
+
       // Log tool names for debugging
-      Object.keys(tools).forEach(toolName => {
+      Object.keys(tools).forEach((toolName) => {
         console.log(`   - Tool: ${toolName}`);
       });
-      
+
       const server = new MCPServer({
         id: `${segmentName}-${randomUUID()}`,
         name: `MCP ${segmentName.charAt(0).toUpperCase() + segmentName.slice(1)} Server`,
@@ -165,22 +228,22 @@ function createSegmentRoute(
   app.post(`/${segmentName}/messages`, async (req, res) => {
     const sessionId = req.query.sessionId as string;
     const transport = sessions.get(sessionId);
-    
+
     if (!transport) {
       console.error(`❌ [${segmentName}] Session not found: ${sessionId}`);
       return res.status(404).json({ error: "Session not found" });
     }
-    
+
     // Capture raw body for debugging
     const chunks: Buffer[] = [];
     const originalOnData = req.on.bind(req);
-    
-    req.on('data', (chunk: Buffer) => {
+
+    req.on("data", (chunk: Buffer) => {
       chunks.push(chunk);
     });
-    
-    req.on('end', () => {
-      const rawBody = Buffer.concat(chunks).toString('utf8');
+
+    req.on("end", () => {
+      const rawBody = Buffer.concat(chunks).toString("utf8");
       console.log(`\n📨 [${segmentName}] RAW HTTP BODY:`);
       console.log(`═══════════════════════════════════════════════════════`);
       console.log(rawBody);
@@ -194,7 +257,7 @@ function createSegmentRoute(
       }
       console.log(`═══════════════════════════════════════════════════════\n`);
     });
-    
+
     try {
       await transport.handlePostMessage(req, res);
       console.log(`✅ [${segmentName}] Message handled successfully`);
@@ -202,7 +265,9 @@ function createSegmentRoute(
       console.error(`❌ [${segmentName}] Message error:`, err);
       console.error(`   Error details:`, err.message);
       if (!res.headersSent) {
-        res.status(500).json({ error: "Failed to handle message", details: err.message });
+        res
+          .status(500)
+          .json({ error: "Failed to handle message", details: err.message });
       }
     }
   });
@@ -224,9 +289,14 @@ app.get("/health", (req, res) => {
       status.segments[name] = {
         enabled: true,
         activeSessions: sessionStores[name].size,
-        tools: name === "backlog" ? Object.keys(backlogTools).length :
-               name === "memory" ? Object.keys(memoryTools).length :
-               toolCaches[name] ? Object.keys(toolCaches[name]).length : 0,
+        tools:
+          name === "backlog"
+            ? Object.keys(backlogTools).length
+            : name === "memory"
+              ? Object.keys(memoryTools).length
+              : toolCaches[name]
+                ? Object.keys(toolCaches[name]).length
+                : 0,
         url: `/${name}/sse`,
       };
     } else {
@@ -288,7 +358,7 @@ async function start() {
   try {
     await loadTools();
     await initializeSegments();
-    
+
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`\n🚀 Segmented MCP Hub ready on port ${PORT}`);
       console.log(`\n📍 Available endpoints:`);

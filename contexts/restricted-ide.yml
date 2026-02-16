@@ -1,0 +1,52 @@
+description: Highly restricted IDE context - symbolic operations only
+prompt: |
+  You are running in a RESTRICTED IDE assistant context.
+
+  BLOCKED OPERATIONS:
+  - File creation, reading, deletion
+  - Directory listing
+  - Shell command execution
+  - Project management
+  - Configuration changes
+  - Mode switching
+  - Thinking/meta tools
+
+  ALLOWED OPERATIONS:
+  - Symbolic code search (find_symbol, find_referencing_symbols)
+  - Semantic code editing (replace_symbol_body, insert_after_symbol, etc.)
+  - Memory operations
+
+  Use only symbolic tools for code understanding and manipulation.
+
+excluded_tools:
+  # File Operations
+  - read_file
+  - create_text_file
+  - list_dir
+  - find_file
+
+  # Search & Replace
+  - search_for_pattern
+  - replace_regex
+
+  # Shell & System
+  - execute_shell_command
+
+  # Project Management
+  - remove_project
+  - get_current_config
+  - switch_modes
+
+  # Meta Tools
+  - initial_instructions
+  - prepare_for_new_conversation
+  - summarize_changes
+
+  # Thinking Tools
+  - think_about_collected_information
+  - think_about_task_adherence
+  - think_about_whether_you_are_done
+
+tool_description_overrides: {}
+
+single_project: true

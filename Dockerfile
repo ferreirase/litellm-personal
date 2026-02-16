@@ -16,6 +16,10 @@ ENV PATH="/root/.local/bin:$PATH"
 # Setup Claude Context directory
 RUN mkdir -p /root/.context
 
+# Setup Serena custom context with restricted tools
+RUN mkdir -p /root/.serena/contexts
+COPY contexts/restricted-ide.yml /root/.serena/contexts/restricted-ide.yml
+
 # Mark all directories under /data as safe for git
 RUN git config --global --add safe.directory '*'
 
