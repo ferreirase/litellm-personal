@@ -18,18 +18,18 @@ const mcpConfig = JSON.parse(
   readFileSync(join(process.cwd(), "mcps.json"), "utf-8"),
 );
 
-// Filter out serena from config
-const filteredMcpServers: Record<string, { command: string; args: string[] }> =
+// Filter out serena and disabled servers from config
+const filteredMcpServers: Record<string, { command: string; args: string[]; disabled?: boolean }> =
   {};
 Object.entries(mcpConfig.mcpServers).forEach(
   ([name, config]: [string, any]) => {
-    if (name !== "serena") {
+    if (name !== "serena" && !config.disabled) {
       filteredMcpServers[name] = config;
     }
   },
 );
 
-console.log("📊 MCP Servers from mcps.json (excluding serena):");
+console.log("📊 MCP Servers from mcps.json (excluding serena & disabled):");
 Object.keys(filteredMcpServers).forEach((name) => {
   console.log(`  ✅ ${name}`);
 });
