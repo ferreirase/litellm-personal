@@ -1,6 +1,15 @@
 import { spawn, ChildProcess } from "child_process";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
+import path from "path";
+
+export interface StdioBridgeOptions {
+  command: string;
+  args: string[];
+  env?: Record<string, string>;
+  basePath?: string;
+  debug?: boolean;
+}
 
 export class StdioBridge {
   private process: ChildProcess | null = null;
@@ -9,28 +18,33 @@ export class StdioBridge {
   private buffer = "";
   private hostRoot: string;
   private containerData: string;
+  private basePath: string;
+  private debug: boolean;
 
-  constructor(private command: string, private args: string[], private env: Record<string, string> = {}) {
+  constructor(private options: StdioBridgeOptions) {
     this.hostRoot = process.env.HOST_ROOT || "/home/ferreirase/Documents";
     this.containerData = "/data";
+    this.basePath = options.basePath || this.containerData;
+    this.debug = options.debug || process.env.DEBUG_PATHS === "true";
   }
 
   /**
-   * Recursively converts host paths to container paths in parameters
+   * Recursively converts ALL paths to container format
+   * Handles: relative paths, host paths, container paths, nested objects
    */
-  private convertPathsToContainer(params: any): any {
-    if (typeof params === 'string' && params.startsWith(this.hostRoot)) {
-      return params.replace(this.hostRoot, this.containerData);
+  private convertAllPathsToContainer(params: any): any {
+    if (typeof params === 'string') {
+      return this.convertSinglePath(params);
     }
     
     if (Array.isArray(params)) {
-      return params.map(item => this.convertPathsToContainer(item));
+      return params.map(item => this.convertAllPathsToContainer(item));
     }
     
     if (typeof params === 'object' && params !== null) {
       const converted: any = {};
       for (const [key, value] of Object.entries(params)) {
-        converted[key] = this.convertPathsToContainer(value);
+        converted[key] = this.convertAllPathsToContainer(value);
       }
       return converted;
     }
@@ -38,11 +52,60 @@ export class StdioBridge {
     return params;
   }
 
+  /**
+   * Convert a single path to container format
+   */
+  private convertSinglePath(inputPath: string): string {
+    // Already a container path? Keep as is
+    if (inputPath.startsWith(this.containerData)) {
+      this.logPathConversion(inputPath, inputPath, "already container");
+      return inputPath;
+    }
+
+    // Host root path? Convert to container
+    if (inputPath.startsWith(this.hostRoot)) {
+      const converted = inputPath.replace(this.hostRoot, this.containerData);
+      this.logPathConversion(inputPath, converted, "host→container");
+      return converted;
+    }
+
+    // Relative path? Resolve against basePath
+    if (!path.isAbsolute(inputPath) || inputPath.startsWith('.')) {
+      const resolved = path.resolve(this.basePath, inputPath);
+      this.logPathConversion(inputPath, resolved, "relative→absolute");
+      return resolved;
+    }
+
+    // Absolute path not matching patterns (e.g., /tmp, /etc)
+    // Return as-is but log warning
+    this.logPathConversion(inputPath, inputPath, "unchanged (system path)");
+    return inputPath;
+  }
+
+  /**
+   * Log path conversions for debugging
+   */
+  private logPathConversion(from: string, to: string, type: string): void {
+    if (this.debug) {
+      console.log(`🔄 [${this.options.command}] Path ${type}: "${from}" → "${to}"`);
+    }
+  }
+
   async start(): Promise<void> {
-    console.log(`🚀 Starting Stdio Bridge: ${this.command} ${this.args.join(" ")}`);
-    this.process = spawn(this.command, this.args, {
-      env: { ...process.env, ...this.env },
+    console.log(`🚀 Starting Stdio Bridge: ${this.options.command} ${this.options.args.join(" ")}`);
+    console.log(`   Base Path: ${this.basePath}`);
+    console.log(`   Host Root: ${this.hostRoot} → Container: ${this.containerData}`);
+    console.log(`   Debug Mode: ${this.debug ? 'ON' : 'OFF'}`);
+
+    this.process = spawn(this.options.command, this.options.args, {
+      env: { 
+        ...process.env, 
+        ...this.options.env,
+        HOST_ROOT: this.hostRoot,
+        CONTAINER_DATA: this.containerData
+      },
       shell: true,
+      cwd: this.basePath
     });
 
     this.process.stdout?.on("data", (data) => {
@@ -51,7 +114,11 @@ export class StdioBridge {
     });
 
     this.process.stderr?.on("data", (data) => {
-      console.error(`[${this.command} ERR] ${data}`);
+      console.error(`[${this.options.command} ERR] ${data}`);
+    });
+
+    this.process.on("exit", (code) => {
+      console.log(`[${this.options.command}] Process exited with code ${code}`);
     });
 
     // Send initialize request
@@ -60,8 +127,6 @@ export class StdioBridge {
       capabilities: {},
       clientInfo: { name: "Mastra-Hub", version: "1.0.0" },
     });
-    
-    // Note: notifications/initialized is not required for MCP 2024-11-05
   }
 
   private processBuffer() {
@@ -113,21 +178,43 @@ export class StdioBridge {
       tools[tool.name] = createTool({
         id: tool.name,
         description: tool.description,
-        inputSchema: z.object({}).passthrough(), // Accept any object properties
+        inputSchema: z.object({}).passthrough(),
         execute: async (input) => {
-          // Convert host paths to container paths before sending
-          const convertedInput = this.convertPathsToContainer(input);
+          if (this.debug) {
+            console.log(`📤 [${this.options.command}] Tool call: ${tool.name}`);
+            console.log(`   Input: ${JSON.stringify(input)}`);
+          }
+          
+          // Convert all paths to container format
+          const convertedInput = this.convertAllPathsToContainer(input);
+          
+          if (this.debug && JSON.stringify(input) !== JSON.stringify(convertedInput)) {
+            console.log(`   Converted: ${JSON.stringify(convertedInput)}`);
+          }
           
           const res = await this.request("tools/call", {
             name: tool.name,
             arguments: convertedInput,
           });
+          
           if (res.error) throw new Error(res.error.message);
+          
+          if (this.debug) {
+            console.log(`📥 [${this.options.command}] Response received`);
+          }
+          
           return res.result;
         },
       });
     }
 
     return tools;
+  }
+
+  stop(): void {
+    if (this.process) {
+      this.process.kill();
+      this.process = null;
+    }
   }
 }

@@ -28,19 +28,40 @@ Object.entries(segments).forEach(([name, enabled]) => {
 
 // Initialize bridges for external MCPs
 const bridges = {
-  desktop: segments.desktop ? new StdioBridge("npx", ["-y", "@wonderwhy-er/desktop-commander@latest"], {
-    ALLOWED_DIRECTORIES: "/data",
-    BLOCKED_COMMANDS: "rm -rf /,dd,mkfs,sudo,su",
+  desktop: segments.desktop ? new StdioBridge({
+    command: "npx",
+    args: ["-y", "@wonderwhy-er/desktop-commander@latest"],
+    env: {
+      ALLOWED_DIRECTORIES: "/data",
+      BLOCKED_COMMANDS: "rm -rf /,dd,mkfs,sudo,su",
+    },
+    basePath: "/data",
+    debug: process.env.DEBUG_PATHS === "true"
   }) : null,
-  context: segments.context ? new StdioBridge("npx", ["@zilliz/claude-context-mcp@latest"]) : null,
-  serena: segments.serena ? new StdioBridge("uvx", [
-    "--from", "git+https://github.com/oraios/serena",
-    "serena", "start-mcp-server",
-    "--context", "ide",
-    "--project-from-cwd",
-    "--open-web-dashboard", "False"
-  ]) : null,
-  thinking: segments.thinking ? new StdioBridge("npx", ["-y", "@modelcontextprotocol/server-sequential-thinking"]) : null,
+  context: segments.context ? new StdioBridge({
+    command: "npx",
+    args: ["@zilliz/claude-context-mcp@latest"],
+    basePath: "/data",
+    debug: process.env.DEBUG_PATHS === "true"
+  }) : null,
+  serena: segments.serena ? new StdioBridge({
+    command: "uvx",
+    args: [
+      "--from", "git+https://github.com/oraios/serena",
+      "serena", "start-mcp-server",
+      "--context", "ide",
+      "--project-from-cwd",
+      "--open-web-dashboard", "False"
+    ],
+    basePath: "/data",
+    debug: process.env.DEBUG_PATHS === "true"
+  }) : null,
+  thinking: segments.thinking ? new StdioBridge({
+    command: "npx",
+    args: ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+    basePath: "/data",
+    debug: process.env.DEBUG_PATHS === "true"
+  }) : null,
 };
 
 // Session stores for each segment

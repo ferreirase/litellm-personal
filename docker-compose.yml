@@ -48,6 +48,17 @@ services:
       - ALLOWED_DIRECTORIES=/data
       - BLOCKED_COMMANDS=rm -rf /,dd,mkfs,sudo,su
 
+      # Segment Enablement
+      - ENABLE_BACKLOG=true
+      - ENABLE_MEMORY=true
+      - ENABLE_DESKTOP=true
+      - ENABLE_CONTEXT=true
+      - ENABLE_SERENA=true
+      - ENABLE_THINKING=true
+
+      # Debug Options
+      - DEBUG_PATHS=${DEBUG_PATHS:-false}
+
     volumes:
       - /home/ferreirase/Documents:/data
     networks:
