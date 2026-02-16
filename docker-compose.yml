@@ -20,6 +20,7 @@ services:
     restart: unless-stopped
 
   gateway-mcp:
+    container_name: personal-teste-pb6zfc-gateway-mcp-1
     build:
       context: .
       network: host
