@@ -17,7 +17,11 @@
     },
     "desktop-commander": {
       "command": "npx",
-      "args": ["-y", "@wonderwhy-er/desktop-commander@latest"]
+      "args": ["-y", "@wonderwhy-er/desktop-commander@latest"],
+      "env": {
+        "ALLOWED_DIRECTORIES": "/data/Documents",
+        "BLOCKED_COMMANDS": "rm -rf /,dd,mkfs,sudo,su"
+      }
     },
     "sequential-thinking": {
       "command": "npx",

@@ -45,9 +45,19 @@ const bridges: Record<string, StdioBridge | null> = {};
 Object.entries(filteredMcpServers).forEach(([name, config]: [string, any]) => {
   const envVar = `ENABLE_${name.toUpperCase()}`;
   if (process.env[envVar] !== "false") {
+    let env = config.env || {};
+    
+    if (name === "desktop-commander" && process.env.DESKTOP_BLOCKED_COMMANDS) {
+      env = {
+        ...env,
+        BLOCKED_COMMANDS: process.env.DESKTOP_BLOCKED_COMMANDS,
+      };
+    }
+    
     bridges[name] = new StdioBridge({
       command: config.command,
       args: config.args,
+      env,
       basePath: "/data",
       debug: process.env.DEBUG_PATHS === "true",
     });
