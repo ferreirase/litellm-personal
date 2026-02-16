@@ -1,0 +1,100 @@
+🚀 Starting Stdio Bridge: npx -y @wonderwhy-er/desktop-commander@latest
+   Base Path: /data
+   Host Root: /home/ferreirase/Documents → Container: /data
+   Debug Mode: OFF
+🔧 [npx] Creating 26 Mastra tools...
+   Creating tool: get_config
+   Creating tool: set_config_value
+   Creating tool: read_file
+   Creating tool: read_multiple_files
+   Creating tool: write_file
+   Creating tool: write_pdf
+   Creating tool: create_directory
+   Creating tool: list_directory
+   Creating tool: move_file
+   Creating tool: start_search
+   Creating tool: get_more_search_results
+   Creating tool: stop_search
+   Creating tool: list_searches
+   Creating tool: get_file_info
+   Creating tool: edit_block
+   Creating tool: start_process
+   Creating tool: read_process_output
+   Creating tool: interact_with_process
+   Creating tool: force_terminate
+   Creating tool: list_sessions
+   Creating tool: list_processes
+   Creating tool: kill_process
+   Creating tool: get_usage_stats
+   Creating tool: get_recent_tool_calls
+   Creating tool: give_feedback_to_desktop_commander
+   Creating tool: get_prompts
+✅ [npx] Created 26 tools
+    ✅ 26 tools loaded
+  Loading sequential-thinking tools...
+🚀 Starting Stdio Bridge: npx -y @modelcontextprotocol/server-sequential-thinking
+   Base Path: /data
+   Host Root: /home/ferreirase/Documents → Container: /data
+   Debug Mode: OFF
+[npx ERR] Sequential Thinking MCP Server running on stdio
+
+🔧 [npx] Creating 1 Mastra tools...
+   Creating tool: sequentialthinking
+✅ [npx] Created 1 tools
+    ✅ 1 tools loaded
+  Loading backlog tools...
+🚀 Starting Stdio Bridge: backlog mcp start
+   Base Path: /data
+   Host Root: /home/ferreirase/Documents → Container: /data
+   Debug Mode: OFF
+🔧 [backlog] Creating 21 Mastra tools...
+   Creating tool: get_workflow_overview
+   Creating tool: get_task_creation_guide
+   Creating tool: get_task_execution_guide
+   Creating tool: get_task_finalization_guide
+   Creating tool: task_create
+   Creating tool: task_list
+   Creating tool: task_search
+   Creating tool: task_edit
+   Creating tool: task_view
+   Creating tool: task_archive
+   Creating tool: task_complete
+   Creating tool: milestone_list
+   Creating tool: milestone_add
+   Creating tool: milestone_rename
+   Creating tool: milestone_remove
+   Creating tool: milestone_archive
+   Creating tool: document_list
+   Creating tool: document_view
+   Creating tool: document_create
+   Creating tool: document_update
+   Creating tool: document_search
+✅ [backlog] Created 21 tools
+    ✅ 21 tools loaded
+
+✨ All tools loaded successfully!
+
+
+🎯 Initializing Segments...
+
+🚀 Route created: /memory/mcp
+🚀 Route created: /desktop-commander/mcp
+🚀 Route created: /sequential-thinking/mcp
+🚀 Route created: /backlog/mcp
+
+🚀 Segmented MCP Hub ready on port 8081
+
+📍 Available endpoints:
+   http://localhost:8081/memory/mcp
+   http://localhost:8081/desktop-commander/mcp
+   http://localhost:8081/sequential-thinking/mcp
+   http://localhost:8081/backlog/mcp
+
+💡 Health check: http://localhost:8081/health
+
+📡 [backlog] POST request from 10.0.4.1
+🔧 [backlog] Creating MCPServer with 21 tools
+📡 [backlog] POST request from 10.0.4.1
+🔧 [backlog] Creating MCPServer with 21 tools
+📡 [backlog] POST request from 10.0.4.1
+🔧 [backlog] Creating MCPServer with 21 tools
