@@ -31,7 +31,6 @@ RUN npm install
 COPY . .
 RUN chmod +x entrypoint.sh scripts/init-backlog.sh
 RUN npm run build
-RUN mkdir -p /data && ./scripts/init-backlog.sh
 
 # Default environment variables
 ENV PORT=8081
