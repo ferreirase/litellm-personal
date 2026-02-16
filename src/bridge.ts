@@ -29,22 +29,40 @@ export class StdioBridge {
   }
 
   /**
-   * Recursively converts ALL paths to container format
-   * Handles: relative paths, host paths, container paths, nested objects
+   * List of parameter keys that should be treated as file paths
    */
-  private convertAllPathsToContainer(params: any): any {
+  private pathKeys = [
+    'path', 'file_path', 'filePath', 'filepath',
+    'directory', 'dir', 'folder',
+    'source', 'destination', 'dest',
+    'oldPath', 'newPath',
+    'from', 'to',
+    'source_path', 'target_path',
+    'working_directory', 'cwd',
+    'absolute_path', 'relative_path'
+  ];
+
+  /**
+   * Recursively converts paths to container format
+   * Only converts values for known path keys, leaves other strings untouched
+   */
+  private convertAllPathsToContainer(params: any, key?: string): any {
+    // If it's a string and the key is a known path field, convert it
     if (typeof params === 'string') {
-      return this.convertSinglePath(params);
+      if (key && this.pathKeys.includes(key)) {
+        return this.convertSinglePath(params);
+      }
+      return params;
     }
     
     if (Array.isArray(params)) {
-      return params.map(item => this.convertAllPathsToContainer(item));
+      return params.map((item, index) => this.convertAllPathsToContainer(item, `${key}[${index}]`));
     }
     
     if (typeof params === 'object' && params !== null) {
       const converted: any = {};
-      for (const [key, value] of Object.entries(params)) {
-        converted[key] = this.convertAllPathsToContainer(value);
+      for (const [objKey, value] of Object.entries(params)) {
+        converted[objKey] = this.convertAllPathsToContainer(value, objKey);
       }
       return converted;
     }
