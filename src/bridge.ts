@@ -135,6 +135,9 @@ export class StdioBridge {
     );
     console.log(`   Debug Mode: ${this.debug ? "ON" : "OFF"}`);
 
+    // Use shell: false for backlog, true for others
+    const useShell = this.options.command !== "backlog";
+
     this.process = spawn(this.options.command, this.options.args, {
       env: {
         ...process.env,
@@ -142,7 +145,7 @@ export class StdioBridge {
         HOST_ROOT: this.hostRoot,
         CONTAINER_DATA: this.containerData,
       },
-      shell: true,
+      shell: useShell,
       cwd: this.basePath,
     });
 
@@ -159,12 +162,24 @@ export class StdioBridge {
       console.log(`[${this.options.command}] Process exited with code ${code}`);
     });
 
+    // Wait for process to be ready (especially important for backlog)
+    if (this.debug) {
+      console.log(`   Waiting ${500}ms for process to be ready...`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     // Send initialize request
+    if (this.debug) {
+      console.log(`   Sending initialize request...`);
+    }
     await this.request("initialize", {
       protocolVersion: "2024-11-05",
       capabilities: {},
       clientInfo: { name: "Mastra-Hub", version: "1.0.0" },
     });
+    if (this.debug) {
+      console.log(`   Initialize request sent, waiting for response...`);
+    }
   }
 
   private processBuffer() {
@@ -195,15 +210,48 @@ export class StdioBridge {
     const request =
       JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n";
 
-    return new Promise((resolve) => {
+    if (this.debug) {
+      console.log(`   → Request: ${method}`);
+      console.log(`      Body: ${request}`);
+    }
+
+    return new Promise((resolve, reject) => {
       this.pendingRequests.set(id, resolve);
+
+      // Add timeout to avoid hanging requests
+      const timeout = setTimeout(() => {
+        this.pendingRequests.delete(id);
+        reject(new Error(`Request timeout after 30000ms: ${method}`));
+      }, 30000);
+
+      // Wrapper to clear timeout when response arrives
+      const originalResolve = resolve;
+      this.pendingRequests.set(id, (data: any) => {
+        clearTimeout(timeout);
+        originalResolve(data);
+      });
+
+      if (this.debug) {
+        console.log(`   Writing to stdin: ${request}`);
+      }
       this.process?.stdin?.write(request);
     });
   }
 
   async listTools(): Promise<any[]> {
+    if (this.debug) {
+      console.log(`   Calling tools/list...`);
+    }
     const res = await this.request("tools/list", {});
-    return res.result?.tools || [];
+    if (this.debug) {
+      console.log(`   Response received:`, res);
+      console.log(`   Tools in response:`, res?.result?.tools);
+    }
+    const tools = res.result?.tools || [];
+    if (this.debug) {
+      console.log(`   Returning ${tools.length} tools`);
+    }
+    return tools;
   }
 
   /**
