@@ -29,7 +29,7 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
-RUN chmod +x entrypoint.sh scripts/init-backlog.sh
+RUN chmod +x entrypoint.sh
 RUN npm run build
 
 # Default environment variables
