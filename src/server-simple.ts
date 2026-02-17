@@ -21,42 +21,66 @@ app.use(
 );
 app.use(express.json());
 
-// Session store - each session gets its own Desktop Commander process
-interface Session {
-  id: string;
-  process: ChildProcess;
-  buffer: string;
-  messageQueue: any[];
-  pendingRequests: Map<string | number, any>;
+// --- MCP Server Registry ---
+
+interface McpServerConfig {
+  command: string;
+  args: string[];
+  extraEnv?: Record<string, string>;
 }
 
+const MCP_SERVERS: Record<string, McpServerConfig> = {
+  "desktop-commander": {
+    command: "npx",
+    args: ["@wonderwhy-er/desktop-commander@latest"],
+    extraEnv: { WORKSPACE_PATH, LOG_LEVEL },
+  },
+  "sequential-thinking": {
+    command: "npx",
+    args: ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+  },
+};
+
+// --- Session Management ---
+
+interface Session {
+  id: string;
+  serverName: string;
+  process: ChildProcess;
+  buffer: string;
+  pendingRequests: Map<string | number, { resolve: Function; reject: Function }>;
+}
+
+// Key: "${serverName}:${sessionId}"
 const sessions = new Map<string, Session>();
 
-/**
- * Create a new Desktop Commander process for a session
- */
-function createDesktopCommanderProcess(sessionId: string): Session {
-  logger.info(`Creating Desktop Commander process for session ${sessionId}`);
+function sessionKey(serverName: string, sessionId: string): string {
+  return `${serverName}:${sessionId}`;
+}
 
-  const dcProcess = spawn("npx", ["@wonderwhy-er/desktop-commander@latest"], {
+/**
+ * Create a new MCP subprocess for a session
+ */
+function createMcpProcess(serverName: string, sessionId: string, config: McpServerConfig): Session {
+  logger.info(`Creating ${serverName} process for session ${sessionId}`);
+
+  const env = { ...process.env, ...(config.extraEnv || {}) };
+
+  const proc = spawn(config.command, config.args, {
     stdio: ["pipe", "pipe", "pipe"],
-    env: {
-      ...process.env,
-      WORKSPACE_PATH,
-      LOG_LEVEL,
-    },
+    env,
   });
 
   const session: Session = {
     id: sessionId,
-    process: dcProcess,
+    serverName,
+    process: proc,
     buffer: "",
-    messageQueue: [],
     pendingRequests: new Map(),
   };
 
-  // Handle stdout - parse JSON-RPC messages
-  dcProcess.stdout?.on("data", (data: Buffer) => {
+  // Handle stdout - parse newline-delimited JSON-RPC
+  proc.stdout?.on("data", (data: Buffer) => {
     session.buffer += data.toString();
 
     const lines = session.buffer.split("\n");
@@ -67,225 +91,247 @@ function createDesktopCommanderProcess(sessionId: string): Session {
 
       try {
         const message = JSON.parse(line);
-        logger.debug(`Session ${sessionId} received:`, message);
-        session.messageQueue.push(message);
+        logger.debug(`[${serverName}:${sessionId}] received:`, message);
 
-        // If this is a response to a pending request, resolve it
         if (message.id !== undefined && session.pendingRequests.has(message.id)) {
           const { resolve } = session.pendingRequests.get(message.id)!;
           session.pendingRequests.delete(message.id);
           resolve(message);
         }
       } catch (error) {
-        logger.error(`Session ${sessionId} failed to parse message:`, line, error);
+        logger.error(`[${serverName}:${sessionId}] failed to parse:`, line, error);
       }
     }
   });
 
-  // Handle stderr
-  dcProcess.stderr?.on("data", (data: Buffer) => {
-    logger.debug(`Session ${sessionId} stderr:`, data.toString());
+  proc.stderr?.on("data", (data: Buffer) => {
+    logger.debug(`[${serverName}:${sessionId}] stderr:`, data.toString());
   });
 
-  // Handle process errors
-  dcProcess.on("error", (error: Error) => {
-    logger.error(`Session ${sessionId} process error:`, error);
+  proc.on("error", (error: Error) => {
+    logger.error(`[${serverName}:${sessionId}] process error:`, error);
   });
 
-  // Handle process exit
-  dcProcess.on("exit", (code: number | null, signal: string | null) => {
-    logger.info(`Session ${sessionId} process exited`, { code, signal });
-    sessions.delete(sessionId);
+  proc.on("exit", (code: number | null, signal: string | null) => {
+    logger.info(`[${serverName}:${sessionId}] process exited`, { code, signal });
+    sessions.delete(sessionKey(serverName, sessionId));
   });
 
   return session;
 }
 
 /**
- * Send a message to Desktop Commander and wait for response
+ * Send a JSON-RPC message to the subprocess.
+ * - If message has id: waits for matching response (or times out)
+ * - If no id (notification): resolves immediately after write
  */
-async function sendToDesktopCommander(
-  session: Session,
-  message: any,
-): Promise<any> {
+async function sendToMcp(session: Session, message: any, timeoutMs = 30000): Promise<any> {
   return new Promise((resolve, reject) => {
     const messageStr = JSON.stringify(message) + "\n";
-
-    logger.debug(`Session ${session.id} sending:`, message);
+    logger.debug(`[${session.serverName}:${session.id}] sending:`, message);
 
     session.process.stdin?.write(messageStr, (error) => {
       if (error) {
-        logger.error(`Session ${session.id} write error:`, error);
-        reject(error);
+        logger.error(`[${session.serverName}:${session.id}] write error:`, error);
+        return reject(error);
       }
     });
 
-    // For requests (with id), wait for response
     if (message.id !== undefined) {
-      session.pendingRequests.set(message.id, { resolve, reject });
-
-      // Timeout after 30s
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         if (session.pendingRequests.has(message.id)) {
           session.pendingRequests.delete(message.id);
-          reject(new Error("Request timeout"));
+          reject(new Error(`Request timeout (id=${message.id})`));
         }
-      }, 30000);
+      }, timeoutMs);
+
+      session.pendingRequests.set(message.id, {
+        resolve: (msg: any) => {
+          clearTimeout(timer);
+          resolve(msg);
+        },
+        reject: (err: any) => {
+          clearTimeout(timer);
+          reject(err);
+        },
+      });
     } else {
-      // For notifications (no id), resolve immediately
+      // Notification — no response expected
       resolve(undefined);
     }
   });
 }
 
 /**
- * Initialize a Desktop Commander session with MCP handshake
+ * Perform the MCP initialization handshake for a new session.
+ * initialize → initialized notification
  */
 async function initializeSession(session: Session): Promise<void> {
-  logger.info(`Initializing session ${session.id}`);
+  logger.info(`[${session.serverName}:${session.id}] initializing...`);
 
-  // Wait a bit for process to start
+  // Give the process a moment to start
   await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  // Step 1: Send initialize request
-  const initResponse = await sendToDesktopCommander(session, {
+  const initResponse = await sendToMcp(session, {
     jsonrpc: "2.0",
     method: "initialize",
     params: {
       protocolVersion: "2024-11-05",
-      capabilities: {
-        tools: {},
-      },
-      clientInfo: {
-        name: "MCP HTTP Proxy",
-        version: "1.0.0",
-      },
+      capabilities: { tools: {} },
+      clientInfo: { name: "MCP HTTP Proxy", version: "1.0.0" },
     },
     id: 1,
   });
 
-  logger.info(`Session ${session.id} initialized:`, initResponse.result);
+  logger.info(`[${session.serverName}:${session.id}] initialized:`, initResponse?.result?.serverInfo);
 
-  // Step 2: Send initialized notification
-  await sendToDesktopCommander(session, {
+  // Notification — no id, no response
+  await sendToMcp(session, {
     jsonrpc: "2.0",
     method: "notifications/initialized",
     params: {},
   });
 
-  logger.info(`Session ${session.id} ready`);
+  logger.info(`[${session.serverName}:${session.id}] ready`);
 }
 
-// MCP endpoint - handles all MCP protocol messages
-app.all("/mcp", async (req, res) => {
-  try {
-    const sessionId = (req.headers["mcp-session-id"] as string) || randomUUID();
-    let session = sessions.get(sessionId);
+// --- Route handler ---
 
-    // Create new session if needed
-    if (!session) {
-      session = createDesktopCommanderProcess(sessionId);
-      sessions.set(sessionId, session);
+async function handleMcpRequest(
+  serverName: string,
+  req: express.Request,
+  res: express.Response,
+): Promise<void> {
+  const config = MCP_SERVERS[serverName];
 
-      // Initialize the session with MCP handshake
-      try {
-        await initializeSession(session);
-      } catch (error) {
-        logger.error(`Failed to initialize session ${sessionId}:`, error);
-        sessions.delete(sessionId);
-        return res.status(500).json({
-          jsonrpc: "2.0",
-          error: {
-            code: -32603,
-            message: "Failed to initialize Desktop Commander",
-          },
-          id: null,
-        });
-      }
+  if (!config) {
+    res.status(404).json({
+      jsonrpc: "2.0",
+      error: {
+        code: -32601,
+        message: `Unknown MCP server: "${serverName}". Available: ${Object.keys(MCP_SERVERS).join(", ")}`,
+      },
+      id: null,
+    });
+    return;
+  }
 
-      // Send session ID to client
-      res.setHeader("Mcp-Session-Id", sessionId);
-    }
+  const sessionId = (req.headers["mcp-session-id"] as string) || randomUUID();
+  const key = sessionKey(serverName, sessionId);
+  let session = sessions.get(key);
 
-    // Forward the request to Desktop Commander
-    const body = req.body;
-
-    if (!body || !body.jsonrpc) {
-      return res.status(400).json({
-        jsonrpc: "2.0",
-        error: {
-          code: -32600,
-          message: "Invalid Request",
-        },
-        id: null,
-      });
-    }
+  // Create + initialize new session if needed
+  if (!session) {
+    session = createMcpProcess(serverName, sessionId, config);
+    sessions.set(key, session);
 
     try {
-      const response = await sendToDesktopCommander(session, body);
-
-      if (response) {
-        res.json(response);
-      } else {
-        // Notification - no response expected
-        res.status(204).send();
-      }
-    } catch (error: any) {
-      logger.error(`Request failed for session ${sessionId}:`, error);
+      await initializeSession(session);
+    } catch (error) {
+      logger.error(`Failed to initialize session ${key}:`, error);
+      sessions.delete(key);
       res.status(500).json({
         jsonrpc: "2.0",
         error: {
           code: -32603,
-          message: error.message || "Internal error",
+          message: `Failed to initialize ${serverName}`,
         },
-        id: body.id || null,
+        id: null,
       });
+      return;
+    }
+
+    res.setHeader("Mcp-Session-Id", sessionId);
+  }
+
+  const body = req.body;
+
+  if (!body || !body.jsonrpc) {
+    res.status(400).json({
+      jsonrpc: "2.0",
+      error: { code: -32600, message: "Invalid JSON-RPC request" },
+      id: null,
+    });
+    return;
+  }
+
+  try {
+    const response = await sendToMcp(session, body);
+
+    if (response) {
+      res.json(response);
+    } else {
+      res.status(204).send();
     }
   } catch (error: any) {
-    logger.error("Error handling request:", error);
+    logger.error(`Request failed for session ${key}:`, error);
     res.status(500).json({
       jsonrpc: "2.0",
       error: {
         code: -32603,
-        message: "Internal server error",
+        message: error.message || "Internal error",
       },
-      id: null,
+      id: body.id ?? null,
     });
   }
+}
+
+// --- Routes ---
+
+// GET /mcp/servers — list available servers
+app.get("/mcp/servers", (_req, res) => {
+  res.json({ servers: Object.keys(MCP_SERVERS) });
+});
+
+// Backward-compat: /mcp → desktop-commander
+app.all("/mcp", async (req, res) => {
+  await handleMcpRequest("desktop-commander", req, res);
+});
+
+// /mcp/:server — route to any registered MCP server
+app.all("/mcp/:server", async (req, res) => {
+  await handleMcpRequest(req.params.server, req, res);
 });
 
 // Health check
-app.get("/health", (req, res) => {
+app.get("/health", (_req, res) => {
+  const sessionsByServer: Record<string, number> = {};
+  for (const key of sessions.keys()) {
+    const [serverName] = key.split(":");
+    sessionsByServer[serverName] = (sessionsByServer[serverName] || 0) + 1;
+  }
+
   res.json({
-    name: "Desktop Commander MCP Proxy",
-    version: "1.0.0",
+    name: "MCP HTTP Proxy",
+    version: "2.0.0",
     status: "online",
+    servers: Object.keys(MCP_SERVERS),
     activeSessions: sessions.size,
+    sessionsByServer,
     workspace: WORKSPACE_PATH,
   });
 });
 
 // Start server
 app.listen(PORT, "0.0.0.0", () => {
-  logger.info(`MCP Proxy Server listening on port ${PORT}`);
+  logger.info(`MCP Proxy Server v2 listening on port ${PORT}`);
   logger.info(`Workspace: ${WORKSPACE_PATH}`);
-  logger.info(`Endpoint: http://localhost:${PORT}/mcp`);
+  logger.info(`Available servers: ${Object.keys(MCP_SERVERS).join(", ")}`);
+  logger.info(`Endpoints:`);
+  for (const name of Object.keys(MCP_SERVERS)) {
+    logger.info(`  http://localhost:${PORT}/mcp/${name}`);
+  }
   logger.info(`Health: http://localhost:${PORT}/health`);
 });
 
 // Graceful shutdown
-process.on("SIGTERM", () => {
-  logger.info("Shutting down...");
-  for (const [sessionId, session] of sessions) {
+function shutdown() {
+  logger.info("Shutting down, killing all subprocesses...");
+  for (const session of sessions.values()) {
     session.process.kill();
   }
   process.exit(0);
-});
+}
 
-process.on("SIGINT", () => {
-  logger.info("Shutting down...");
-  for (const [sessionId, session] of sessions) {
-    session.process.kill();
-  }
-  process.exit(0);
-});
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
