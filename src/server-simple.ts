@@ -59,6 +59,15 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
     cwd: WORKSPACE_PATH,
     allowCwdOverride: true,
   },
+  "mastra-memory": {
+    command: process.env.NODE_BINARY || "node",
+    args: ["/home/ferreirase/Documents/Estudos/AI/ai-memory/dist/index.js"],
+    cwd: "/home/ferreirase/Documents/Estudos/AI/ai-memory",
+    extraEnv: {
+      DATABASE_URL: process.env.MASTRA_DATABASE_URL || "",
+      OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || "",
+    },
+  },
 };
 
 // --- Session Management ---

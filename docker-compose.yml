@@ -23,6 +23,13 @@ services:
       - MILVUS_TOKEN=${MILVUS_TOKEN:-}
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-VoyageAI}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-voyage-code-3}
+      # Mastra Memory MCP
+      - NODE_BINARY=${NODE_BINARY:-/home/ferreirase/.nvm/versions/node/v22.21.1/bin/node}
+      - MASTRA_DATABASE_URL=${MASTRA_DATABASE_URL:-postgresql://mastra:mastra_password@mastra-memory-db:5432/mastra_memory}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+    depends_on:
+      mastra-memory-db:
+        condition: service_healthy
     restart: unless-stopped
     # Security: run as non-root user (optional, uncomment if needed)
     # user: "1000:1000"
@@ -41,6 +48,28 @@ services:
       retries: 3
       start_period: 10s
 
+  mastra-memory-db:
+    image: pgvector/pgvector:pg16
+    container_name: mastra-memory-db
+    environment:
+      POSTGRES_USER: mastra
+      POSTGRES_PASSWORD: mastra_password
+      POSTGRES_DB: mastra_memory
+    volumes:
+      - mastra_postgres_data:/var/lib/postgresql/data
+      - /home/ferreirase/Documents/Estudos/AI/ai-memory/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mastra -d mastra_memory"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - personal-litellm-ukykiw
+
 networks:
   personal-litellm-ukykiw:
     external: true
+
+volumes:
+  mastra_postgres_data:
