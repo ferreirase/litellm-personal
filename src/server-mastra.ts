@@ -46,7 +46,35 @@ async function loadDesktopCommanderTools() {
     // Start the Desktop Commander process
     await dcProcess.start();
 
-    // Send tools/list request to get all available tools
+    // Step 1: Send initialize request (MCP protocol handshake)
+    logger.debug("Initializing Desktop Commander MCP session...");
+    const initResponse = await sendToDesktopCommander({
+      jsonrpc: "2.0",
+      method: "initialize",
+      params: {
+        protocolVersion: "2024-11-05",
+        capabilities: {
+          tools: {},
+        },
+        clientInfo: {
+          name: "Desktop Commander HTTP Proxy",
+          version: "1.0.0",
+        },
+      },
+      id: 0,
+    });
+
+    logger.debug("Desktop Commander initialized:", initResponse.result);
+
+    // Step 2: Send initialized notification (required by MCP spec)
+    // Note: Notifications don't have an ID field in JSON-RPC
+    await dcProcess.sendMessage({
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+      params: {},
+    } as any);
+
+    // Step 3: Now we can send tools/list request to get all available tools
     const response = await sendToDesktopCommander({
       jsonrpc: "2.0",
       method: "tools/list",
@@ -106,9 +134,12 @@ function sendToDesktopCommander(message: any): Promise<any> {
     const id = message.id || ++messageIdCounter;
     pendingRequests.set(id, { resolve, reject });
 
+    logger.debug(`Waiting for response with id: ${id}`);
+
     try {
       await dcProcess.sendMessage({ ...message, id });
     } catch (error) {
+      logger.error(`Failed to send message with id ${id}:`, error);
       pendingRequests.delete(id);
       reject(error);
       return;
@@ -117,6 +148,7 @@ function sendToDesktopCommander(message: any): Promise<any> {
     // Timeout after 30s
     setTimeout(() => {
       if (pendingRequests.has(id)) {
+        logger.warn(`Request timeout for id ${id} - no response received from Desktop Commander`);
         pendingRequests.delete(id);
         reject(new Error("Request timeout"));
       }

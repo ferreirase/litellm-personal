@@ -42,4 +42,4 @@ ENV NODE_ENV=production \
     LOG_LEVEL=info
 
 # Run the server
-CMD ["node", "dist/server-mastra.js"]
+CMD ["node", "dist/server-simple.js"]

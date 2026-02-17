@@ -13,7 +13,7 @@ services:
       - /home/ferreirase:/home/ferreirase
     environment:
       # Workspace path inside container (allow full access)
-      - WORKSPACE_PATH=/home/ferreirase
+      - WORKSPACE_PATH=/home/ferreirase/Documents
       # Node environment
       - NODE_ENV=production
       # Log level (debug, info, warn, error)

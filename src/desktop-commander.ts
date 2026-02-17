@@ -168,6 +168,7 @@ export class DesktopCommanderProcess extends EventEmitter {
           );
           reject(error);
         } else {
+          this.logger.debug("Successfully wrote message to Desktop Commander stdin");
           resolve();
         }
       });
