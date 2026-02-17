@@ -9,7 +9,7 @@ echo "==========================="
 echo ""
 
 # Check if container is running
-if ! docker compose ps | grep -q "mcp-desktop-commander.*running"; then
+if ! docker compose ps | grep -q "gateway-mcp.*running"; then
     echo "❌ Container is not running"
     echo "Start it with: docker compose up -d"
     exit 1

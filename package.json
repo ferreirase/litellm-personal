@@ -1,5 +1,5 @@
 {
-  "name": "mcp-desktop-commander-http",
+  "name": "gateway-mcp",
   "version": "1.0.0",
   "description": "HTTP wrapper for Desktop Commander MCP server",
   "main": "dist/server-mastra.js",

@@ -3,6 +3,8 @@ import express from "express";
 import cors from "cors";
 import { spawn, ChildProcess } from "child_process";
 import { randomUUID } from "crypto";
+import fs from "fs";
+import path from "path";
 import { ConsoleLogger } from "./logger.js";
 
 const PORT = parseInt(process.env.PORT || "8081", 10);
@@ -27,6 +29,8 @@ interface McpServerConfig {
   command: string;
   args: string[];
   extraEnv?: Record<string, string>;
+  cwd?: string;
+  allowCwdOverride?: boolean;
 }
 
 const MCP_SERVERS: Record<string, McpServerConfig> = {
@@ -39,6 +43,12 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
     command: "npx",
     args: ["-y", "@modelcontextprotocol/server-sequential-thinking"],
   },
+  "backlog": {
+    command: "backlog",
+    args: ["mcp", "start"],
+    cwd: WORKSPACE_PATH,
+    allowCwdOverride: true,
+  },
 };
 
 // --- Session Management ---
@@ -49,6 +59,7 @@ interface Session {
   process: ChildProcess;
   buffer: string;
   pendingRequests: Map<string | number, { resolve: Function; reject: Function }>;
+  cwd: string;
 }
 
 // Key: "${serverName}:${sessionId}"
@@ -61,14 +72,21 @@ function sessionKey(serverName: string, sessionId: string): string {
 /**
  * Create a new MCP subprocess for a session
  */
-function createMcpProcess(serverName: string, sessionId: string, config: McpServerConfig): Session {
-  logger.info(`Creating ${serverName} process for session ${sessionId}`);
+function createMcpProcess(
+  serverName: string,
+  sessionId: string,
+  config: McpServerConfig,
+  effectiveCwd?: string,
+): Session {
+  const resolvedCwd = effectiveCwd || config.cwd || WORKSPACE_PATH;
+  logger.info(`Creating ${serverName} process for session ${sessionId} (cwd: ${resolvedCwd})`);
 
   const env = { ...process.env, ...(config.extraEnv || {}) };
 
   const proc = spawn(config.command, config.args, {
     stdio: ["pipe", "pipe", "pipe"],
     env,
+    cwd: resolvedCwd,
   });
 
   const session: Session = {
@@ -77,6 +95,7 @@ function createMcpProcess(serverName: string, sessionId: string, config: McpServ
     process: proc,
     buffer: "",
     pendingRequests: new Map(),
+    cwd: resolvedCwd,
   };
 
   // Handle stdout - parse newline-delimited JSON-RPC
@@ -195,6 +214,31 @@ async function initializeSession(session: Session): Promise<void> {
   logger.info(`[${session.serverName}:${session.id}] ready`);
 }
 
+/**
+ * Run `backlog init --defaults [projectName]` in the given directory.
+ * Sets GIT_CONFIG_* env vars to bypass git safe-directory ownership checks
+ * that occur when the container user differs from the host file owner.
+ */
+function spawnInit(projectPath: string, projectName: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const env = {
+      ...process.env,
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: "safe.directory",
+      GIT_CONFIG_VALUE_0: "*",
+    };
+    const proc = spawn("backlog", ["init", "--defaults", projectName], {
+      cwd: projectPath,
+      stdio: "pipe",
+      env,
+    });
+    proc.on("exit", (code) =>
+      code === 0 ? resolve() : reject(new Error(`backlog init exited with code ${code}`)),
+    );
+    proc.on("error", reject);
+  });
+}
+
 // --- Route handler ---
 
 async function handleMcpRequest(
@@ -216,13 +260,28 @@ async function handleMcpRequest(
     return;
   }
 
+  // --- Resolve effective cwd ---
+  let resolvedCwd = config.cwd || WORKSPACE_PATH;
+
+  if (config.allowCwdOverride) {
+    const requestedPath =
+      (req.headers["x-project-path"] as string) || (req.query.path as string);
+    if (requestedPath) {
+      if (!requestedPath.startsWith(WORKSPACE_PATH) || !fs.existsSync(requestedPath)) {
+        res.status(400).json({ error: `invalid path: ${requestedPath}` });
+        return;
+      }
+      resolvedCwd = requestedPath;
+    }
+  }
+
   const sessionId = (req.headers["mcp-session-id"] as string) || randomUUID();
   const key = sessionKey(serverName, sessionId);
   let session = sessions.get(key);
 
   // Create + initialize new session if needed
   if (!session) {
-    session = createMcpProcess(serverName, sessionId, config);
+    session = createMcpProcess(serverName, sessionId, config, resolvedCwd);
     sessions.set(key, session);
 
     try {
@@ -242,6 +301,10 @@ async function handleMcpRequest(
     }
 
     res.setHeader("Mcp-Session-Id", sessionId);
+  } else if (config.allowCwdOverride && resolvedCwd !== session.cwd) {
+    logger.warn(
+      `[${serverName}:${sessionId}] ignoring X-Project-Path override — session already bound to ${session.cwd}`,
+    );
   }
 
   const body = req.body;
@@ -253,6 +316,117 @@ async function handleMcpRequest(
       id: null,
     });
     return;
+  }
+
+  // --- Backlog-specific interceptions ---
+
+  if (serverName === "backlog") {
+    // Inject synthetic backlog_init tool into tools/list response
+    if (body.method === "tools/list") {
+      try {
+        const response = await sendToMcp(session, body);
+        const initTool = {
+          name: "backlog_init",
+          description:
+            "Initializes a backlog project in the specified directory. " +
+            "Must be called before using other tools in projects without a backlog/ folder. " +
+            "After init, all backlog tools become available automatically.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: {
+                type: "string",
+                description: "Absolute path to the project directory",
+              },
+              name: {
+                type: "string",
+                description: "Project name (defaults to directory name)",
+              },
+            },
+            required: ["path"],
+          },
+        };
+        if (response?.result) {
+          response.result.tools = [...(response.result.tools || []), initTool];
+        }
+        res.json(response);
+      } catch (error: any) {
+        logger.error(`Request failed for session ${key}:`, error);
+        res.status(500).json({
+          jsonrpc: "2.0",
+          error: { code: -32603, message: error.message || "Internal error" },
+          id: body.id ?? null,
+        });
+      }
+      return;
+    }
+
+    // Intercept tools/call for backlog_init before forwarding to subprocess
+    if (body.method === "tools/call" && body.params?.name === "backlog_init") {
+      const { path: projectPath, name: projectName } = body.params.arguments || {};
+
+      if (!projectPath || !projectPath.startsWith(WORKSPACE_PATH) || !fs.existsSync(projectPath)) {
+        res.json({
+          jsonrpc: "2.0",
+          result: { content: [{ type: "text", text: `Error: invalid path: ${projectPath}` }] },
+          id: body.id,
+        });
+        return;
+      }
+
+      const backlogDir = path.join(projectPath, "backlog");
+
+      if (fs.existsSync(backlogDir)) {
+        res.json({
+          jsonrpc: "2.0",
+          result: {
+            content: [{ type: "text", text: `Project already initialized at ${projectPath}` }],
+          },
+          id: body.id,
+        });
+        return;
+      }
+
+      const name = projectName || path.basename(projectPath);
+
+      try {
+        await spawnInit(projectPath, name);
+      } catch (err: any) {
+        res.json({
+          jsonrpc: "2.0",
+          result: { content: [{ type: "text", text: `Init error: ${err.message}` }] },
+          id: body.id,
+        });
+        return;
+      }
+
+      // Restart the subprocess so it picks up the new backlog/ folder
+      session.process.kill();
+      sessions.delete(key);
+
+      const newSession = createMcpProcess(serverName, sessionId, config, session.cwd);
+      sessions.set(key, newSession);
+
+      try {
+        await initializeSession(newSession);
+      } catch (err: any) {
+        logger.error(`Failed to re-initialize session after backlog_init:`, err);
+      }
+
+      res.json({
+        jsonrpc: "2.0",
+        result: {
+          content: [
+            {
+              type: "text",
+              text: `Project "${name}" initialized at ${projectPath}. Backlog tools are now available.`,
+            },
+          ],
+        },
+        id: body.id,
+      });
+      return;
+    }
   }
 
   try {

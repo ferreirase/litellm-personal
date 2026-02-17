@@ -1,11 +1,11 @@
 version: "3.8"
 
 services:
-  mcp-desktop-commander:
+  gateway-mcp:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mcp-desktop-commander
+    container_name: gateway-mcp
     ports:
       - "${PORT:-8081}:8081"
     volumes:

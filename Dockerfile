@@ -22,6 +22,9 @@ COPY src ./src
 # Build TypeScript
 RUN npm run build
 
+# Install global MCP CLIs
+RUN npm i -g backlog.md
+
 # Create workspace directory
 RUN mkdir -p /workspace
 
