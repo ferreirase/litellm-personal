@@ -23,6 +23,8 @@ services:
     restart: unless-stopped
     # Security: run as non-root user (optional, uncomment if needed)
     # user: "1000:1000"
+    networks:
+      - personal-litellm-ukykiw
     healthcheck:
       test:
         [
@@ -35,3 +37,7 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+networks:
+  personal-litellm-ukykiw:
+    external: true
