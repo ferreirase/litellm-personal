@@ -68,7 +68,37 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
       OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || "",
     },
   },
+  "serena": {
+    command: "/home/ferreirase/.local/bin/uvx",
+    args: [
+      "--from", "git+https://github.com/oraios/serena",
+      "serena", "start-mcp-server",
+      "--context", "claude-code",
+      "--project-from-cwd",
+    ],
+    cwd: WORKSPACE_PATH,
+    allowCwdOverride: true,
+  },
 };
+
+const SERENA_DISABLED_TOOLS = new Set([
+  "read_file",
+  "list_dir",
+  "create_text_file",
+  "find_file",
+  "search_for_pattern",
+  "replace_regex",
+  "execute_shell_command",
+  "get_current_config",
+  "initial_instructions",
+  "prepare_for_new_conversation",
+  "remove_project",
+  "summarize_changes",
+  "switch_modes",
+  "think_about_collected_information",
+  "think_about_task_adherence",
+  "think_about_whether_you_are_done",
+]);
 
 // --- Session Management ---
 
@@ -444,6 +474,30 @@ async function handleMcpRequest(
         },
         id: body.id,
       });
+      return;
+    }
+  }
+
+  // --- Serena-specific interceptions ---
+
+  if (serverName === "serena") {
+    if (body.method === "tools/list") {
+      try {
+        const response = await sendToMcp(session, body);
+        if (response?.result?.tools) {
+          response.result.tools = response.result.tools.filter(
+            (tool: { name: string }) => !SERENA_DISABLED_TOOLS.has(tool.name),
+          );
+        }
+        res.json(response);
+      } catch (error: any) {
+        logger.error(`Request failed for session ${key}:`, error);
+        res.status(500).json({
+          jsonrpc: "2.0",
+          error: { code: -32603, message: error.message || "Internal error" },
+          id: body.id ?? null,
+        });
+      }
       return;
     }
   }
