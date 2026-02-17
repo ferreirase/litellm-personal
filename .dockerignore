@@ -1,0 +1,51 @@
+# Dependencies (node_modules will be installed in container)
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn.lock
+pnpm-lock.yaml
+
+# Keep package-lock.json for npm ci
+
+# Build output (will be built in container)
+dist/
+build/
+*.tsbuildinfo
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Documentation
+*.md
+docs/
+
+# Environment files
+.env
+.env.*
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+coverage/
+.nyc_output/
+test/
+tests/
+*.test.ts
+*.spec.ts
+
+# Temporary files
+tmp/
+temp/
+*.tmp

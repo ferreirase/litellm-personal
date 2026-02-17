@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
 .claude
@@ -38,6 +37,3 @@ coverage/
 tmp/
 temp/
 *.tmp
-
-# Docker
-.dockerignore
