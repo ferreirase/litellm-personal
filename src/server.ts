@@ -6,11 +6,11 @@ import {
   ServerConfig,
   JSONRPCRequest,
   JSONRPCResponse,
-  JSONRPCNotification,
 } from "./types.js";
 
 /**
  * HTTP MCP Server that wraps Desktop Commander
+ * Implements Streamable HTTP transport according to MCP spec 2025-03-26
  */
 export class MCPHttpServer {
   private app: express.Application;
@@ -19,6 +19,8 @@ export class MCPHttpServer {
   private logger: ConsoleLogger;
   private config: ServerConfig;
   private requestIdCounter: number = 0;
+  private sseClients: Map<string, Response> = new Map();
+  private sessionId: string | null = null;
 
   constructor(config: ServerConfig) {
     this.config = config;
@@ -61,7 +63,7 @@ export class MCPHttpServer {
     // CORS headers - allow all origins for MCP server
     this.app.use((req, res, next) => {
       res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE");
 
       // Dynamically allow all requested headers
       const requestedHeaders = req.headers["access-control-request-headers"];
@@ -70,6 +72,10 @@ export class MCPHttpServer {
       } else {
         res.setHeader("Access-Control-Allow-Headers", "*");
       }
+
+      // CRITICAL: Expose Mcp-Session-Id header so Inspector can read it
+      // Without this, browser blocks access to the header even if server sends it
+      res.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
 
       if (req.method === "OPTIONS") {
         res.sendStatus(200);
@@ -80,7 +86,7 @@ export class MCPHttpServer {
   }
 
   /**
-   * Setup Express routes
+   * Setup Express routes following MCP Streamable HTTP spec
    */
   private setupRoutes(): void {
     // Health check endpoint
@@ -92,8 +98,49 @@ export class MCPHttpServer {
       });
     });
 
-    // Main MCP endpoint
+    // GET /mcp - SSE stream for server-initiated messages (optional per spec)
+    this.app.get("/mcp", (req, res) => {
+      this.logger.info("SSE stream opened");
+
+      // Set SSE headers
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "Access-Control-Allow-Origin": "*",
+      });
+
+      // Generate session ID
+      const sessionId = `sse-${Date.now()}-${Math.random()}`;
+      this.sseClients.set(sessionId, res);
+
+      // Keep connection alive with heartbeat
+      const heartbeat = setInterval(() => {
+        try {
+          res.write(`:heartbeat\n\n`);
+        } catch (error) {
+          clearInterval(heartbeat);
+          this.sseClients.delete(sessionId);
+        }
+      }, 30000);
+
+      // Handle client disconnect
+      req.on("close", () => {
+        this.logger.info(`SSE stream closed: ${sessionId}`);
+        clearInterval(heartbeat);
+        this.sseClients.delete(sessionId);
+      });
+    });
+
+    // POST /mcp - Handle JSON-RPC messages
     this.app.post("/mcp", this.handleMCPRequest.bind(this));
+
+    // DELETE /mcp - Session termination (optional per spec)
+    this.app.delete("/mcp", (req, res) => {
+      const sessionId = req.headers["mcp-session-id"];
+      this.logger.info(`Session termination requested: ${sessionId}`);
+      res.status(204).send();
+    });
 
     // 404 handler
     this.app.use((req, res) => {
@@ -104,19 +151,19 @@ export class MCPHttpServer {
     });
 
     // Error handler
-    this.app.use(
-      (error: Error, req: Request, res: Response, next: Function) => {
-        this.logger.error("Express error:", error);
+    this.app.use((error: Error, req: Request, res: Response) => {
+      this.logger.error("Express error:", error);
+      if (!res.headersSent) {
         res.status(500).json({
           error: "Internal server error",
           message: error.message,
         });
-      },
-    );
+      }
+    });
   }
 
   /**
-   * Handle MCP JSON-RPC request
+   * Handle MCP JSON-RPC request according to Streamable HTTP spec
    */
   private async handleMCPRequest(req: Request, res: Response): Promise<void> {
     try {
@@ -135,34 +182,82 @@ export class MCPHttpServer {
         return;
       }
 
+      // Check Accept header (spec requirement)
+      const accept = req.headers.accept || "";
+      const acceptsJson = accept.includes("application/json");
+      const acceptsSSE = accept.includes("text/event-stream");
+
       // Handle batch requests
       if (Array.isArray(body)) {
         const responses = await Promise.all(
           body.map((request) => this.processRequest(request)),
         );
-        res.json(responses.filter((r) => r !== null));
+        const validResponses = responses.filter((r) => r !== null);
+
+        if (validResponses.length === 0) {
+          // All notifications
+          res.status(202).send();
+        } else {
+          res.json(validResponses);
+        }
         return;
       }
 
       // Handle single request
+      const isNotification = !("id" in body);
+      const isRequest = "method" in body && "id" in body;
+
+      // Process the message
       const response = await this.processRequest(body);
-      if (response !== null) {
+
+      // Per spec: notifications/responses return 202 Accepted
+      if (isNotification || !isRequest) {
+        res.status(202).send();
+        return;
+      }
+
+      // Generate session ID on initialize (if not already set)
+      if (body.method === "initialize" && !this.sessionId) {
+        this.sessionId = `sess-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        this.logger.info(`Session created: ${this.sessionId}`);
+      }
+
+      // Add session ID header to response if we have one
+      if (this.sessionId) {
+        res.setHeader("Mcp-Session-Id", this.sessionId);
+      }
+
+      // For requests, can return either JSON or SSE
+      // Inspector should support both, but let's prefer JSON for simplicity
+      if (acceptsJson || !acceptsSSE) {
+        // Direct JSON response
         res.json(response);
       } else {
-        // Notification - no response
-        res.status(204).send();
+        // SSE stream response
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+          "Access-Control-Allow-Origin": "*",
+        });
+
+        // Send response as SSE event
+        res.write(`data: ${JSON.stringify(response)}\n\n`);
+        res.end();
       }
     } catch (error) {
       this.logger.error("Error handling MCP request:", error);
-      res.status(500).json({
-        jsonrpc: "2.0",
-        error: {
-          code: -32603,
-          message: "Internal error",
-          data: error instanceof Error ? error.message : String(error),
-        },
-        id: null,
-      });
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: "2.0",
+          error: {
+            code: -32603,
+            message: "Internal error",
+            data: error instanceof Error ? error.message : String(error),
+          },
+          id: null,
+        });
+      }
     }
   }
 
@@ -256,6 +351,7 @@ export class MCPHttpServer {
         this.logger.info(
           "MCP endpoint: http://localhost:" + this.config.port + "/mcp",
         );
+        this.logger.info("Transport: Streamable HTTP (MCP spec 2025-03-26)");
         resolve();
       });
     });
@@ -266,6 +362,16 @@ export class MCPHttpServer {
    */
   async stop(): Promise<void> {
     this.logger.info("Stopping MCP HTTP Server...");
+
+    // Close all SSE connections
+    this.sseClients.forEach((client) => {
+      try {
+        client.end();
+      } catch (error) {
+        // Ignore errors on close
+      }
+    });
+    this.sseClients.clear();
 
     // Stop Desktop Commander process
     await this.dcProcess.stop();

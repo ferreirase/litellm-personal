@@ -17,7 +17,7 @@ services:
       # Node environment
       - NODE_ENV=production
       # Log level (debug, info, warn, error)
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_LEVEL=${LOG_LEVEL:-debug}
       # Request timeout in milliseconds
       - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-30000}
     restart: unless-stopped

@@ -2,12 +2,14 @@
   "name": "mcp-desktop-commander-http",
   "version": "1.0.0",
   "description": "HTTP wrapper for Desktop Commander MCP server",
-  "main": "dist/server.js",
+  "main": "dist/server-mastra.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch src/server-mastra.ts",
+    "dev:old": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/server-mastra.js",
+    "start:old": "node dist/server.js",
     "clean": "rm -rf dist"
   },
   "keywords": [
@@ -19,8 +21,12 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@mastra/core": "^1.4.0",
+    "@mastra/mcp": "^1.0.1",
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "@types/cors": "^2.8.19",
     "@wonderwhy-er/desktop-commander": "latest",
+    "cors": "^2.8.6",
     "express": "^4.21.2",
     "zod": "^3.24.1"
   },
