@@ -58,9 +58,9 @@ export class MCPHttpServer {
       next();
     });
 
-    // CORS headers (localhost only for security)
+    // CORS headers - allow all origins for MCP server
     this.app.use((req, res, next) => {
-      res.setHeader("Access-Control-Allow-Origin", "http://localhost:*");
+      res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type");
       if (req.method === "OPTIONS") {
