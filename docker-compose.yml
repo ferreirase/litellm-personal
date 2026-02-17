@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  mcp-desktop-commander:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-desktop-commander
+    ports:
+      - "${PORT:-8081}:8081"
+    volumes:
+      # Mount host directory to container workspace
+      - ${WORKSPACE_PATH:-/home/ferreirase/Documents}:/workspace
+    environment:
+      # Workspace path inside container
+      - WORKSPACE_PATH=/workspace
+      # Node environment
+      - NODE_ENV=production
+      # Log level (debug, info, warn, error)
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Request timeout in milliseconds
+      - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-30000}
+    restart: unless-stopped
+    # Security: run as non-root user (optional, uncomment if needed)
+    # user: "1000:1000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:8081/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));",
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s

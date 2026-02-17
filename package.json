@@ -1,0 +1,36 @@
+{
+  "name": "mcp-desktop-commander-http",
+  "version": "1.0.0",
+  "description": "HTTP wrapper for Desktop Commander MCP server",
+  "main": "dist/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "mcp",
+    "desktop-commander",
+    "http",
+    "docker"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@wonderwhy-er/desktop-commander": "latest",
+    "express": "^4.21.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
