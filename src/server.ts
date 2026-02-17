@@ -62,7 +62,15 @@ export class MCPHttpServer {
     this.app.use((req, res, next) => {
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+      // Dynamically allow all requested headers
+      const requestedHeaders = req.headers["access-control-request-headers"];
+      if (requestedHeaders) {
+        res.setHeader("Access-Control-Allow-Headers", requestedHeaders);
+      } else {
+        res.setHeader("Access-Control-Allow-Headers", "*");
+      }
+
       if (req.method === "OPTIONS") {
         res.sendStatus(200);
       } else {
