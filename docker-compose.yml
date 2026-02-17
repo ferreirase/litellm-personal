@@ -9,8 +9,6 @@ services:
     volumes:
       # Mount home directory with same path structure
       - /home/ferreirase:/home/ferreirase
-    env_file:
-      - /home/ferreirase/.context/.env
     environment:
       # Workspace path inside container (allow full access)
       - WORKSPACE_PATH=/home/ferreirase/Documents
@@ -20,6 +18,11 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-debug}
       # Request timeout in milliseconds
       - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-30000}
+      # Claude Context MCP credentials (set values in Dokploy)
+      - VOYAGEAI_API_KEY=${VOYAGEAI_API_KEY:-}
+      - MILVUS_TOKEN=${MILVUS_TOKEN:-}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-VoyageAI}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-voyage-code-3}
     restart: unless-stopped
     # Security: run as non-root user (optional, uncomment if needed)
     # user: "1000:1000"
