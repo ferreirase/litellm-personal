@@ -9,11 +9,11 @@ services:
     ports:
       - "${PORT:-8081}:8081"
     volumes:
-      # Mount host directory to container workspace
-      - ${WORKSPACE_PATH:-/home/ferreirase/Documents}:/workspace
+      # Mount home directory with same path structure
+      - /home/ferreirase:/home/ferreirase
     environment:
-      # Workspace path inside container
-      - WORKSPACE_PATH=/workspace
+      # Workspace path inside container (allow full access)
+      - WORKSPACE_PATH=/home/ferreirase
       # Node environment
       - NODE_ENV=production
       # Log level (debug, info, warn, error)
