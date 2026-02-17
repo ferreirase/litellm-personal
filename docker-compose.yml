@@ -9,6 +9,8 @@ services:
     volumes:
       # Mount home directory with same path structure
       - /home/ferreirase:/home/ferreirase
+    env_file:
+      - /home/ferreirase/.context/.env
     environment:
       # Workspace path inside container (allow full access)
       - WORKSPACE_PATH=/home/ferreirase/Documents

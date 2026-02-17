@@ -43,6 +43,16 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
     command: "npx",
     args: ["-y", "@modelcontextprotocol/server-sequential-thinking"],
   },
+  "claude-context": {
+    command: "npx",
+    args: ["@zilliz/claude-context-mcp@latest"],
+    extraEnv: {
+      VOYAGEAI_API_KEY: process.env.VOYAGEAI_API_KEY || "",
+      MILVUS_TOKEN: process.env.MILVUS_TOKEN || "",
+      EMBEDDING_PROVIDER: process.env.EMBEDDING_PROVIDER || "VoyageAI",
+      EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || "voyage-code-3",
+    },
+  },
   "backlog": {
     command: "backlog",
     args: ["mcp", "start"],
