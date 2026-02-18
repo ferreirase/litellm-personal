@@ -49,18 +49,14 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
       "/home/ferreirase/Documents/Estudos/AI/claude-context/packages/mcp/dist/index.js",
     ],
     extraEnv: {
-      // Usar zvec (sem servidor externo)
-      VECTOR_DB_PROVIDER: "zvec",
-      ZVEC_STORAGE_PATH: "/home/ferreirase/.claude-context/zvec-data",
-      ZVEC_INDEX_TYPE: "hnsw",
+      // Usar Milvus como vector database (zvec requer AVX-512, CPU nao suporta)
+      VECTOR_DB_PROVIDER: "milvus",
+      MILVUS_ADDRESS: process.env.MILVUS_ADDRESS || "milvus-standalone:19530",
 
-      // Seu provider de embedding (mantém o VoyageAI)
+      // Seu provider de embedding (VoyageAI)
       VOYAGEAI_API_KEY: process.env.VOYAGEAI_API_KEY || "",
       EMBEDDING_PROVIDER: process.env.EMBEDDING_PROVIDER || "VoyageAI",
       EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || "voyage-code-3",
-
-      // Milvus não é mais necessário com zvec
-      // MILVUS_TOKEN: process.env.MILVUS_TOKEN || "",
     },
   },
   backlog: {

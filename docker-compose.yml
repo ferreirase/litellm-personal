@@ -12,7 +12,8 @@ services:
     environment:
       # Workspace path inside container (allow full access)
       - WORKSPACE_PATH=/home/ferreirase/Documents
-      - VECTOR_DB_PROVIDER=zvec
+      - VECTOR_DB_PROVIDER=milvus
+      - MILVUS_ADDRESS=milvus-standalone:19530
       # Node environment
       - NODE_ENV=production
       # Log level (debug, info, warn, error)
@@ -29,6 +30,8 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
     depends_on:
       mastra-memory-db:
+        condition: service_healthy
+      milvus-standalone:
         condition: service_healthy
     restart: unless-stopped
     # Security: run as non-root user (optional, uncomment if needed)
@@ -47,6 +50,26 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+  milvus-standalone:
+    image: milvusdb/milvus:v2.5.9
+    container_name: milvus-standalone
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_USE_EMBED: "true"
+      ETCD_DATA_DIR: /var/lib/milvus/etcd
+      COMMON_STORAGETYPE: local
+    volumes:
+      - milvus_data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - personal-litellm-ukykiw
 
   mastra-memory-db:
     image: pgvector/pgvector:pg16
@@ -73,3 +96,4 @@ networks:
 
 volumes:
   mastra_postgres_data:
+  milvus_data:
