@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM node:24-slim
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -24,6 +24,7 @@ RUN npm run build
 
 # Install global MCP CLIs
 RUN npm i -g backlog.md
+RUN npm i -g @modelcontextprotocol/server-sequential-thinking
 
 # Create workspace directory
 RUN mkdir -p /workspace

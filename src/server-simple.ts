@@ -41,7 +41,7 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
   },
   "sequential-thinking": {
     command: "npx",
-    args: ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+    args: ["@modelcontextprotocol/server-sequential-thinking"],
   },
   "claude-context": {
     command: "node",
