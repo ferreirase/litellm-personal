@@ -44,13 +44,23 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
     args: ["-y", "@modelcontextprotocol/server-sequential-thinking"],
   },
   "claude-context": {
-    command: "npx",
-    args: ["@zilliz/claude-context-mcp@latest"],
+    command: "node",
+    args: [
+      "/home/ferreirase/Documents/Estudos/AI/claude-context/packages/mcp/dist/index.js",
+    ],
     extraEnv: {
+      // Usar zvec (sem servidor externo)
+      VECTOR_DB_PROVIDER: "zvec",
+      ZVEC_STORAGE_PATH: "/home/ferreirase/.claude-context/zvec-data",
+      ZVEC_INDEX_TYPE: "hnsw",
+
+      // Seu provider de embedding (mantém o VoyageAI)
       VOYAGEAI_API_KEY: process.env.VOYAGEAI_API_KEY || "",
-      MILVUS_TOKEN: process.env.MILVUS_TOKEN || "",
       EMBEDDING_PROVIDER: process.env.EMBEDDING_PROVIDER || "VoyageAI",
       EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || "voyage-code-3",
+
+      // Milvus não é mais necessário com zvec
+      // MILVUS_TOKEN: process.env.MILVUS_TOKEN || "",
     },
   },
   backlog: {
