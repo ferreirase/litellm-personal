@@ -8,7 +8,7 @@ dist/
 build/
 *.tsbuildinfo
 backlog
-
+.serena
 # Environment variables
 .env
 .env.local

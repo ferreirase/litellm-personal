@@ -53,7 +53,7 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
       EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || "voyage-code-3",
     },
   },
-  "backlog": {
+  backlog: {
     command: "backlog",
     args: ["mcp", "start"],
     cwd: WORKSPACE_PATH,
@@ -68,12 +68,15 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
       OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || "",
     },
   },
-  "serena": {
+  serena: {
     command: "/home/ferreirase/.local/bin/uvx",
     args: [
-      "--from", "git+https://github.com/oraios/serena",
-      "serena", "start-mcp-server",
-      "--context", "claude-code",
+      "--from",
+      "git+https://github.com/oraios/serena",
+      "serena",
+      "start-mcp-server",
+      "--context",
+      "claude-code",
       "--project-from-cwd",
     ],
     cwd: WORKSPACE_PATH,
@@ -82,22 +85,12 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
 };
 
 const SERENA_DISABLED_TOOLS = new Set([
+  // Genuinamente redundantes com tools nativas do CLI
   "read_file",
   "list_dir",
   "create_text_file",
-  "find_file",
-  "search_for_pattern",
-  "replace_regex",
+  // Controle manual de shell (opcional: remova se quiser agent loop autônomo)
   "execute_shell_command",
-  "get_current_config",
-  "initial_instructions",
-  "prepare_for_new_conversation",
-  "remove_project",
-  "summarize_changes",
-  "switch_modes",
-  "think_about_collected_information",
-  "think_about_task_adherence",
-  "think_about_whether_you_are_done",
 ]);
 
 // --- Session Management ---
@@ -107,7 +100,10 @@ interface Session {
   serverName: string;
   process: ChildProcess;
   buffer: string;
-  pendingRequests: Map<string | number, { resolve: Function; reject: Function }>;
+  pendingRequests: Map<
+    string | number,
+    { resolve: Function; reject: Function }
+  >;
   cwd: string;
 }
 
@@ -128,7 +124,9 @@ function createMcpProcess(
   effectiveCwd?: string,
 ): Session {
   const resolvedCwd = effectiveCwd || config.cwd || WORKSPACE_PATH;
-  logger.info(`Creating ${serverName} process for session ${sessionId} (cwd: ${resolvedCwd})`);
+  logger.info(
+    `Creating ${serverName} process for session ${sessionId} (cwd: ${resolvedCwd})`,
+  );
 
   const env = { ...process.env, ...(config.extraEnv || {}) };
 
@@ -161,13 +159,20 @@ function createMcpProcess(
         const message = JSON.parse(line);
         logger.debug(`[${serverName}:${sessionId}] received:`, message);
 
-        if (message.id !== undefined && session.pendingRequests.has(message.id)) {
+        if (
+          message.id !== undefined &&
+          session.pendingRequests.has(message.id)
+        ) {
           const { resolve } = session.pendingRequests.get(message.id)!;
           session.pendingRequests.delete(message.id);
           resolve(message);
         }
       } catch (error) {
-        logger.error(`[${serverName}:${sessionId}] failed to parse:`, line, error);
+        logger.error(
+          `[${serverName}:${sessionId}] failed to parse:`,
+          line,
+          error,
+        );
       }
     }
   });
@@ -181,7 +186,10 @@ function createMcpProcess(
   });
 
   proc.on("exit", (code: number | null, signal: string | null) => {
-    logger.info(`[${serverName}:${sessionId}] process exited`, { code, signal });
+    logger.info(`[${serverName}:${sessionId}] process exited`, {
+      code,
+      signal,
+    });
     sessions.delete(sessionKey(serverName, sessionId));
   });
 
@@ -193,14 +201,21 @@ function createMcpProcess(
  * - If message has id: waits for matching response (or times out)
  * - If no id (notification): resolves immediately after write
  */
-async function sendToMcp(session: Session, message: any, timeoutMs = 30000): Promise<any> {
+async function sendToMcp(
+  session: Session,
+  message: any,
+  timeoutMs = 30000,
+): Promise<any> {
   return new Promise((resolve, reject) => {
     const messageStr = JSON.stringify(message) + "\n";
     logger.debug(`[${session.serverName}:${session.id}] sending:`, message);
 
     session.process.stdin?.write(messageStr, (error) => {
       if (error) {
-        logger.error(`[${session.serverName}:${session.id}] write error:`, error);
+        logger.error(
+          `[${session.serverName}:${session.id}] write error:`,
+          error,
+        );
         return reject(error);
       }
     });
@@ -251,7 +266,10 @@ async function initializeSession(session: Session): Promise<void> {
     id: 1,
   });
 
-  logger.info(`[${session.serverName}:${session.id}] initialized:`, initResponse?.result?.serverInfo);
+  logger.info(
+    `[${session.serverName}:${session.id}] initialized:`,
+    initResponse?.result?.serverInfo,
+  );
 
   // Notification — no id, no response
   await sendToMcp(session, {
@@ -282,7 +300,9 @@ function spawnInit(projectPath: string, projectName: string): Promise<void> {
       env,
     });
     proc.on("exit", (code) =>
-      code === 0 ? resolve() : reject(new Error(`backlog init exited with code ${code}`)),
+      code === 0
+        ? resolve()
+        : reject(new Error(`backlog init exited with code ${code}`)),
     );
     proc.on("error", reject);
   });
@@ -316,7 +336,10 @@ async function handleMcpRequest(
     const requestedPath =
       (req.headers["x-project-path"] as string) || (req.query.path as string);
     if (requestedPath) {
-      if (!requestedPath.startsWith(WORKSPACE_PATH) || !fs.existsSync(requestedPath)) {
+      if (
+        !requestedPath.startsWith(WORKSPACE_PATH) ||
+        !fs.existsSync(requestedPath)
+      ) {
         res.status(400).json({ error: `invalid path: ${requestedPath}` });
         return;
       }
@@ -412,12 +435,21 @@ async function handleMcpRequest(
 
     // Intercept tools/call for backlog_init before forwarding to subprocess
     if (body.method === "tools/call" && body.params?.name === "backlog_init") {
-      const { path: projectPath, name: projectName } = body.params.arguments || {};
+      const { path: projectPath, name: projectName } =
+        body.params.arguments || {};
 
-      if (!projectPath || !projectPath.startsWith(WORKSPACE_PATH) || !fs.existsSync(projectPath)) {
+      if (
+        !projectPath ||
+        !projectPath.startsWith(WORKSPACE_PATH) ||
+        !fs.existsSync(projectPath)
+      ) {
         res.json({
           jsonrpc: "2.0",
-          result: { content: [{ type: "text", text: `Error: invalid path: ${projectPath}` }] },
+          result: {
+            content: [
+              { type: "text", text: `Error: invalid path: ${projectPath}` },
+            ],
+          },
           id: body.id,
         });
         return;
@@ -429,7 +461,12 @@ async function handleMcpRequest(
         res.json({
           jsonrpc: "2.0",
           result: {
-            content: [{ type: "text", text: `Project already initialized at ${projectPath}` }],
+            content: [
+              {
+                type: "text",
+                text: `Project already initialized at ${projectPath}`,
+              },
+            ],
           },
           id: body.id,
         });
@@ -443,7 +480,9 @@ async function handleMcpRequest(
       } catch (err: any) {
         res.json({
           jsonrpc: "2.0",
-          result: { content: [{ type: "text", text: `Init error: ${err.message}` }] },
+          result: {
+            content: [{ type: "text", text: `Init error: ${err.message}` }],
+          },
           id: body.id,
         });
         return;
@@ -453,13 +492,21 @@ async function handleMcpRequest(
       session.process.kill();
       sessions.delete(key);
 
-      const newSession = createMcpProcess(serverName, sessionId, config, session.cwd);
+      const newSession = createMcpProcess(
+        serverName,
+        sessionId,
+        config,
+        session.cwd,
+      );
       sessions.set(key, newSession);
 
       try {
         await initializeSession(newSession);
       } catch (err: any) {
-        logger.error(`Failed to re-initialize session after backlog_init:`, err);
+        logger.error(
+          `Failed to re-initialize session after backlog_init:`,
+          err,
+        );
       }
 
       res.json({
