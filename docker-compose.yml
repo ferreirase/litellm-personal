@@ -12,6 +12,7 @@ services:
     environment:
       # Workspace path inside container (allow full access)
       - WORKSPACE_PATH=/home/ferreirase/Documents
+      - VECTOR_DB_PROVIDER=zvec
       # Node environment
       - NODE_ENV=production
       # Log level (debug, info, warn, error)
@@ -20,7 +21,6 @@ services:
       - REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-30000}
       # Claude Context MCP credentials (set values in Dokploy)
       - VOYAGEAI_API_KEY=${VOYAGEAI_API_KEY:-}
-      - MILVUS_TOKEN=${MILVUS_TOKEN:-}
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-VoyageAI}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-voyage-code-3}
       # Mastra Memory MCP
