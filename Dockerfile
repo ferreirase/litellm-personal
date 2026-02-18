@@ -1,10 +1,12 @@
-FROM node:24-slim
+FROM ubuntu:24.04
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Node.js 24.x and system deps
+RUN apt-get update && apt-get install -y curl ca-certificates gnupg git && \
+    curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create app directory
 WORKDIR /app
