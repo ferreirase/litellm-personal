@@ -76,22 +76,15 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
       "serena",
       "start-mcp-server",
       "--context",
-      "claude-code",
+      "/home/ferreirase/Documents/Estudos/AI/mcp-to-server/serena-full-context.yml",
+      "--mode",
+      "interactive",
       "--project-from-cwd",
     ],
     cwd: WORKSPACE_PATH,
     allowCwdOverride: true,
   },
 };
-
-const SERENA_DISABLED_TOOLS = new Set([
-  // Genuinamente redundantes com tools nativas do CLI
-  "read_file",
-  "list_dir",
-  "create_text_file",
-  // Controle manual de shell (opcional: remova se quiser agent loop autônomo)
-  "execute_shell_command",
-]);
 
 // --- Session Management ---
 
@@ -533,7 +526,7 @@ async function handleMcpRequest(
         const response = await sendToMcp(session, body);
         if (response?.result?.tools) {
           response.result.tools = response.result.tools.filter(
-            (tool: { name: string }) => !SERENA_DISABLED_TOOLS.has(tool.name),
+            (tool: { name: string }) => !tool.name.startsWith("jet_brains_"),
           );
         }
         res.json(response);
