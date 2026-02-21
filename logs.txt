@@ -1,0 +1,123 @@
+2026-02-21T07:24:31.676Z [2026-02-21T07:24:31.675Z] [INFO] MCP Proxy Server v2 listening on port 8081
+2026-02-21T07:24:31.676Z [2026-02-21T07:24:31.676Z] [INFO] Workspace: /home/ferreirase/Documents
+2026-02-21T07:24:31.676Z [2026-02-21T07:24:31.676Z] [INFO] Available servers: desktop-commander, sequential-thinking, claude-context, backlog, mastra-memory, serena
+2026-02-21T07:24:31.676Z [2026-02-21T07:24:31.676Z] [INFO] Endpoints:
+2026-02-21T07:24:31.676Z [2026-02-21T07:24:31.676Z] [INFO]   http://localhost:8081/mcp/desktop-commander
+2026-02-21T07:24:31.676Z [2026-02-21T07:24:31.676Z] [INFO]   http://localhost:8081/mcp/sequential-thinking
+2026-02-21T07:24:31.676Z [2026-02-21T07:24:31.676Z] [INFO]   http://localhost:8081/mcp/claude-context
+2026-02-21T07:24:31.676Z [2026-02-21T07:24:31.676Z] [INFO]   http://localhost:8081/mcp/backlog
+2026-02-21T07:24:31.676Z [2026-02-21T07:24:31.676Z] [INFO]   http://localhost:8081/mcp/mastra-memory
+2026-02-21T07:24:31.676Z [2026-02-21T07:24:31.676Z] [INFO]   http://localhost:8081/mcp/serena
+2026-02-21T07:24:31.676Z [2026-02-21T07:24:31.676Z] [INFO] Health: http://localhost:8081/health
+2026-02-21T07:39:08.862Z [2026-02-21T07:39:08.862Z] [INFO] Creating backlog process for session 988266de-1f3e-42ec-89f1-5a83ff4724d1 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:39:08.865Z [2026-02-21T07:39:08.865Z] [INFO] [backlog:988266de-1f3e-42ec-89f1-5a83ff4724d1] initializing...
+2026-02-21T07:39:08.866Z [2026-02-21T07:39:08.866Z] [INFO] Creating serena process for session c853a0c7-2271-405f-a346-18b4f165e9df (cwd: /home/ferreirase/Documents)
+2026-02-21T07:39:08.867Z [2026-02-21T07:39:08.867Z] [INFO] [serena:c853a0c7-2271-405f-a346-18b4f165e9df] initializing...
+2026-02-21T07:39:08.867Z [2026-02-21T07:39:08.867Z] [INFO] Creating sequential-thinking process for session dc590f6c-7b49-4a46-9658-13502fd829d3 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:39:08.869Z [2026-02-21T07:39:08.868Z] [INFO] [sequential-thinking:dc590f6c-7b49-4a46-9658-13502fd829d3] initializing...
+2026-02-21T07:39:08.869Z [2026-02-21T07:39:08.869Z] [INFO] Creating claude-context process for session 85df5beb-2d0a-4b80-802b-0420cd59c8eb (cwd: /home/ferreirase/Documents)
+2026-02-21T07:39:08.870Z [2026-02-21T07:39:08.870Z] [INFO] Creating mastra-memory process for session 2562466b-923e-4686-b46c-c828d3728e9d (cwd: /home/ferreirase/Documents/Estudos/AI/ai-memory)
+2026-02-21T07:39:08.972Z [2026-02-21T07:39:08.972Z] [INFO] Creating serena process for session 600cdfa2-f88d-47ac-b82b-0b3e25720197 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:39:08.974Z [2026-02-21T07:39:08.974Z] [INFO] Creating backlog process for session 6188efb3-1551-49dd-bae6-c6b1e2e7a010 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:39:08.976Z [2026-02-21T07:39:08.976Z] [INFO] Creating sequential-thinking process for session 12350eaf-584c-47c5-8dc5-751af8dd372a (cwd: /home/ferreirase/Documents)
+2026-02-21T07:39:08.979Z [2026-02-21T07:39:08.978Z] [INFO] Creating claude-context process for session a48fce6b-433a-4a3c-97f7-3066b97d578c (cwd: /home/ferreirase/Documents)
+2026-02-21T07:39:08.980Z [2026-02-21T07:39:08.980Z] [INFO] Creating mastra-memory process for session db6820ab-dd01-42b4-b4b6-a07e586c26cf (cwd: /home/ferreirase/Documents/Estudos/AI/ai-memory)
+2026-02-21T07:39:12.278Z [2026-02-21T07:39:12.277Z] [INFO] [backlog:988266de-1f3e-42ec-89f1-5a83ff4724d1] initialized: [{"name":"backlog.md","version":"1.38.0"}]
+2026-02-21T07:39:12.278Z [2026-02-21T07:39:12.277Z] [INFO] [backlog:988266de-1f3e-42ec-89f1-5a83ff4724d1] ready
+2026-02-21T07:39:12.278Z [2026-02-21T07:39:12.277Z] [INFO] [claude-context:85df5beb-2d0a-4b80-802b-0420cd59c8eb] initializing...
+2026-02-21T07:39:16.271Z [2026-02-21T07:39:16.271Z] [INFO] [claude-context:85df5beb-2d0a-4b80-802b-0420cd59c8eb] initialized: [{"name":"Context MCP Server","version":"1.0.0"}]
+2026-02-21T07:39:16.272Z [2026-02-21T07:39:16.271Z] [INFO] [claude-context:85df5beb-2d0a-4b80-802b-0420cd59c8eb] ready
+2026-02-21T07:39:16.272Z [2026-02-21T07:39:16.271Z] [INFO] [mastra-memory:2562466b-923e-4686-b46c-c828d3728e9d] initializing...
+2026-02-21T07:39:16.787Z [2026-02-21T07:39:16.787Z] [INFO] [sequential-thinking:dc590f6c-7b49-4a46-9658-13502fd829d3] initialized: [{"name":"sequential-thinking-server","version":"0.2.0"}]
+2026-02-21T07:39:16.787Z [2026-02-21T07:39:16.787Z] [INFO] [sequential-thinking:dc590f6c-7b49-4a46-9658-13502fd829d3] ready
+2026-02-21T07:39:16.787Z [2026-02-21T07:39:16.787Z] [INFO] [serena:600cdfa2-f88d-47ac-b82b-0b3e25720197] initializing...
+2026-02-21T07:39:17.283Z [2026-02-21T07:39:17.283Z] [INFO] [mastra-memory:2562466b-923e-4686-b46c-c828d3728e9d] initialized: [{"name":"mastra-memory","version":"1.0.0"}]
+2026-02-21T07:39:17.283Z [2026-02-21T07:39:17.283Z] [INFO] [mastra-memory:2562466b-923e-4686-b46c-c828d3728e9d] ready
+2026-02-21T07:39:17.283Z [2026-02-21T07:39:17.283Z] [INFO] [backlog:6188efb3-1551-49dd-bae6-c6b1e2e7a010] initializing...
+2026-02-21T07:39:18.386Z [2026-02-21T07:39:18.386Z] [INFO] [backlog:6188efb3-1551-49dd-bae6-c6b1e2e7a010] initialized: [{"name":"backlog.md","version":"1.38.0"}]
+2026-02-21T07:39:18.386Z [2026-02-21T07:39:18.386Z] [INFO] [backlog:6188efb3-1551-49dd-bae6-c6b1e2e7a010] ready
+2026-02-21T07:39:18.386Z [2026-02-21T07:39:18.386Z] [INFO] [sequential-thinking:12350eaf-584c-47c5-8dc5-751af8dd372a] initializing...
+2026-02-21T07:39:19.398Z [2026-02-21T07:39:19.398Z] [INFO] [sequential-thinking:12350eaf-584c-47c5-8dc5-751af8dd372a] initialized: [{"name":"sequential-thinking-server","version":"0.2.0"}]
+2026-02-21T07:39:19.398Z [2026-02-21T07:39:19.398Z] [INFO] [sequential-thinking:12350eaf-584c-47c5-8dc5-751af8dd372a] ready
+2026-02-21T07:39:19.398Z [2026-02-21T07:39:19.398Z] [INFO] [claude-context:a48fce6b-433a-4a3c-97f7-3066b97d578c] initializing...
+2026-02-21T07:39:20.407Z [2026-02-21T07:39:20.406Z] [INFO] [claude-context:a48fce6b-433a-4a3c-97f7-3066b97d578c] initialized: [{"name":"Context MCP Server","version":"1.0.0"}]
+2026-02-21T07:39:20.407Z [2026-02-21T07:39:20.406Z] [INFO] [claude-context:a48fce6b-433a-4a3c-97f7-3066b97d578c] ready
+2026-02-21T07:39:20.407Z [2026-02-21T07:39:20.407Z] [INFO] [mastra-memory:db6820ab-dd01-42b4-b4b6-a07e586c26cf] initializing...
+2026-02-21T07:39:21.417Z [2026-02-21T07:39:21.417Z] [INFO] [mastra-memory:db6820ab-dd01-42b4-b4b6-a07e586c26cf] initialized: [{"name":"mastra-memory","version":"1.0.0"}]
+2026-02-21T07:39:21.417Z [2026-02-21T07:39:21.417Z] [INFO] [mastra-memory:db6820ab-dd01-42b4-b4b6-a07e586c26cf] ready
+2026-02-21T07:39:26.806Z [2026-02-21T07:39:26.806Z] [INFO] [serena:600cdfa2-f88d-47ac-b82b-0b3e25720197] initialized: [{"name":"FastMCP","version":"1.23.0"}]
+2026-02-21T07:39:26.806Z [2026-02-21T07:39:26.806Z] [INFO] [serena:600cdfa2-f88d-47ac-b82b-0b3e25720197] ready
+2026-02-21T07:39:26.826Z [2026-02-21T07:39:26.826Z] [INFO] [serena:c853a0c7-2271-405f-a346-18b4f165e9df] initialized: [{"name":"FastMCP","version":"1.23.0"}]
+2026-02-21T07:39:26.826Z [2026-02-21T07:39:26.826Z] [INFO] [serena:c853a0c7-2271-405f-a346-18b4f165e9df] ready
+2026-02-21T07:39:38.371Z [2026-02-21T07:39:38.371Z] [INFO] Creating serena process for session 43daac71-52e2-41cf-836e-12f0fdc0a035 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:39:38.372Z [2026-02-21T07:39:38.372Z] [INFO] Creating backlog process for session 649e9b83-1ffa-4631-bd99-87d211035c6a (cwd: /home/ferreirase/Documents)
+2026-02-21T07:39:38.386Z [2026-02-21T07:39:38.386Z] [INFO] Creating claude-context process for session cf98a777-0092-4917-a4d2-c23f88839107 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:39:38.388Z [2026-02-21T07:39:38.388Z] [INFO] Creating sequential-thinking process for session b2a2252a-72a9-40f2-9f2b-996e15050e83 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:39:38.390Z [2026-02-21T07:39:38.390Z] [INFO] Creating mastra-memory process for session 6d07890a-646f-43c2-b85e-9ee56405d885 (cwd: /home/ferreirase/Documents/Estudos/AI/ai-memory)
+2026-02-21T07:40:13.014Z [2026-02-21T07:40:13.014Z] [INFO] Creating backlog process for session bddea0f1-b8a0-4a0e-bde1-e7ff58bcde2a (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:13.017Z [2026-02-21T07:40:13.017Z] [INFO] Creating serena process for session 41eaf40f-ba23-430e-90b2-8d12d472978f (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:13.021Z [2026-02-21T07:40:13.021Z] [INFO] Creating sequential-thinking process for session dc32d8a4-6610-479d-86b0-92248a6dfd26 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:13.024Z [2026-02-21T07:40:13.024Z] [INFO] Creating claude-context process for session 92c22b12-3ec1-4158-9735-e06891138e91 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:13.028Z [2026-02-21T07:40:13.028Z] [INFO] Creating mastra-memory process for session 997d722c-c385-4015-95ef-02986a920f4e (cwd: /home/ferreirase/Documents/Estudos/AI/ai-memory)
+2026-02-21T07:40:18.341Z [2026-02-21T07:40:18.341Z] [INFO] Creating backlog process for session ac8679bf-0f56-4573-9af4-295d81dc996c (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:18.343Z [2026-02-21T07:40:18.343Z] [INFO] Creating serena process for session 75e5aad5-f08f-433d-9604-853023e2aa63 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:18.344Z [2026-02-21T07:40:18.344Z] [INFO] Creating sequential-thinking process for session 82a46bb8-80bb-4c51-a571-ccd8c40f2d78 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:18.381Z [2026-02-21T07:40:18.381Z] [INFO] Creating claude-context process for session cab5af07-11d5-488c-a5ed-a4cdf5cdd573 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:18.472Z [2026-02-21T07:40:18.471Z] [INFO] Creating mastra-memory process for session 36460850-550a-41ad-9359-de3c94ec098a (cwd: /home/ferreirase/Documents/Estudos/AI/ai-memory)
+2026-02-21T07:40:18.571Z [2026-02-21T07:40:18.571Z] [INFO] Creating backlog process for session 830f706e-3201-490c-994a-41f4be875a87 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:18.672Z [2026-02-21T07:40:18.672Z] [INFO] Creating serena process for session 2edbb833-6284-4705-aafe-99cc8a6b5835 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:18.674Z [2026-02-21T07:40:18.674Z] [INFO] Creating claude-context process for session 3778955e-6bb7-4b14-9480-f48b21b64311 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:18.676Z [2026-02-21T07:40:18.676Z] [INFO] Creating sequential-thinking process for session 7a7e33a3-0b18-48c2-9ef5-abc2e8022b9c (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:18.678Z [2026-02-21T07:40:18.678Z] [INFO] Creating mastra-memory process for session de93cf1f-02f3-4b02-bb65-7c0988abf086 (cwd: /home/ferreirase/Documents/Estudos/AI/ai-memory)
+2026-02-21T07:40:31.871Z [2026-02-21T07:40:31.871Z] [INFO] Creating backlog process for session 5a7d99fd-5cd9-407a-b967-a08f3a60c188 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:31.874Z [2026-02-21T07:40:31.873Z] [INFO] Creating serena process for session 007dd402-3108-43c9-a559-24135fccc21a (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:31.876Z [2026-02-21T07:40:31.875Z] [INFO] Creating sequential-thinking process for session 8c09c25e-fa0b-49da-8987-dc9fec222978 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:31.877Z [2026-02-21T07:40:31.877Z] [INFO] Creating claude-context process for session 198e8a57-dfe2-464a-bbd7-713b21c86273 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:31.880Z [2026-02-21T07:40:31.880Z] [INFO] Creating mastra-memory process for session d5f18991-b168-46fa-9c13-2d6934b72ce3 (cwd: /home/ferreirase/Documents/Estudos/AI/ai-memory)
+2026-02-21T07:40:33.772Z [2026-02-21T07:40:33.772Z] [INFO] Creating backlog process for session 157c97ca-3dca-4564-9b81-53676b955f6a (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:44.172Z [2026-02-21T07:40:44.172Z] [INFO] Creating backlog process for session c734a865-ce99-48d5-a4c6-5ef0cef38442 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:44.272Z [2026-02-21T07:40:44.272Z] [INFO] Creating serena process for session 9cec57fd-006b-49c2-a448-914cd2f92bcf (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:44.275Z [2026-02-21T07:40:44.275Z] [INFO] Creating sequential-thinking process for session 884e8e47-9662-41c9-9bb7-314ab73a229d (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:44.279Z [2026-02-21T07:40:44.279Z] [INFO] Creating claude-context process for session 6e98f670-7924-4e7c-8e32-2135b07d5a82 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:40:44.371Z [2026-02-21T07:40:44.371Z] [INFO] Creating mastra-memory process for session e2ba56d1-7534-4d02-a476-caaeee3f999c (cwd: /home/ferreirase/Documents/Estudos/AI/ai-memory)
+2026-02-21T07:41:46.221Z [2026-02-21T07:41:46.221Z] [INFO] [claude-context:92c22b12-3ec1-4158-9735-e06891138e91] process exited [{"code":null,"signal":"SIGKILL"}]
+2026-02-21T07:41:46.224Z [2026-02-21T07:41:46.224Z] [INFO] [mastra-memory:d5f18991-b168-46fa-9c13-2d6934b72ce3] process exited [{"code":null,"signal":"SIGKILL"}]
+2026-02-21T07:44:32.364Z [2026-02-21T07:44:32.364Z] [INFO] Creating serena process for session 2a38f403-bc43-4803-ab14-0eb5e9530cd9 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:32.377Z [2026-02-21T07:44:32.376Z] [INFO] Creating backlog process for session 40b75e5e-6e45-4f2b-ac52-5594d5a0c169 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:32.379Z [2026-02-21T07:44:32.379Z] [INFO] Creating claude-context process for session f09cf404-5465-441b-a396-e875c485b587 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:32.381Z [2026-02-21T07:44:32.381Z] [INFO] Creating sequential-thinking process for session 69130854-4fdf-46a5-946c-ada4b415a5cd (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:32.385Z [2026-02-21T07:44:32.383Z] [INFO] Creating mastra-memory process for session c6d2400f-3fd0-4b71-a94b-84b9745b088e (cwd: /home/ferreirase/Documents/Estudos/AI/ai-memory)
+2026-02-21T07:44:34.677Z [2026-02-21T07:44:34.677Z] [INFO] Creating serena process for session 0f1aa879-4a48-45c1-8c79-1e38859b3f35 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:34.679Z [2026-02-21T07:44:34.679Z] [INFO] Creating claude-context process for session b918358c-7c32-4a6e-8691-0a2c207eef38 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:34.681Z [2026-02-21T07:44:34.681Z] [INFO] Creating sequential-thinking process for session 012f6059-3872-488d-b454-172fac872d3e (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:34.683Z [2026-02-21T07:44:34.683Z] [INFO] [backlog:988266de-1f3e-42ec-89f1-5a83ff4724d1] LRU eviction — cap reached for backlog
+2026-02-21T07:44:34.683Z [2026-02-21T07:44:34.683Z] [INFO] Creating backlog process for session 9383f04d-44d1-4e7f-803c-8db08ee4e29e (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:34.684Z [2026-02-21T07:44:34.684Z] [INFO] Creating mastra-memory process for session 023ec2df-472b-41b9-a0a8-e36fc50a6f4e (cwd: /home/ferreirase/Documents/Estudos/AI/ai-memory)
+2026-02-21T07:44:34.686Z [2026-02-21T07:44:34.686Z] [INFO] [backlog:988266de-1f3e-42ec-89f1-5a83ff4724d1] process exited [{"code":null,"signal":"SIGTERM"}]
+2026-02-21T07:44:34.871Z [2026-02-21T07:44:34.871Z] [INFO] [serena:600cdfa2-f88d-47ac-b82b-0b3e25720197] LRU eviction — cap reached for serena
+2026-02-21T07:44:34.871Z [2026-02-21T07:44:34.871Z] [INFO] Creating serena process for session ca142249-0ec2-4449-b5b3-0a5a6845619a (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:34.877Z [2026-02-21T07:44:34.877Z] [INFO] [backlog:6188efb3-1551-49dd-bae6-c6b1e2e7a010] LRU eviction — cap reached for backlog
+2026-02-21T07:44:34.877Z [2026-02-21T07:44:34.877Z] [INFO] Creating backlog process for session 146226b9-9aa7-435a-ad4b-7cfc0d9100af (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:35.173Z [2026-02-21T07:44:35.172Z] [INFO] [sequential-thinking:dc590f6c-7b49-4a46-9658-13502fd829d3] LRU eviction — cap reached for sequential-thinking
+2026-02-21T07:44:35.173Z [2026-02-21T07:44:35.172Z] [INFO] Creating sequential-thinking process for session 501fca7f-77d8-4a41-9d26-a363149a26a6 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:35.175Z [2026-02-21T07:44:35.175Z] [INFO] Creating claude-context process for session b240350c-a9ea-4ed4-84dd-c84fa84fe3ba (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:35.178Z [2026-02-21T07:44:35.178Z] [INFO] Creating mastra-memory process for session ed9837db-8a91-4338-b130-ef31717a84fb (cwd: /home/ferreirase/Documents/Estudos/AI/ai-memory)
+2026-02-21T07:44:35.272Z [2026-02-21T07:44:35.272Z] [INFO] [backlog:6188efb3-1551-49dd-bae6-c6b1e2e7a010] process exited [{"code":null,"signal":"SIGTERM"}]
+2026-02-21T07:44:35.275Z [2026-02-21T07:44:35.275Z] [INFO] [serena:600cdfa2-f88d-47ac-b82b-0b3e25720197] process exited [{"code":143,"signal":null}]
+2026-02-21T07:44:35.771Z [2026-02-21T07:44:35.771Z] [INFO] [sequential-thinking:dc590f6c-7b49-4a46-9658-13502fd829d3] process exited [{"code":null,"signal":"SIGTERM"}]
+2026-02-21T07:44:45.772Z [2026-02-21T07:44:45.772Z] [INFO] [mastra-memory:c6d2400f-3fd0-4b71-a94b-84b9745b088e] process exited [{"code":null,"signal":"SIGKILL"}]
+2026-02-21T07:44:47.184Z [2026-02-21T07:44:47.184Z] [INFO] [claude-context:f09cf404-5465-441b-a396-e875c485b587] process exited [{"code":null,"signal":"SIGKILL"}]
+2026-02-21T07:44:47.796Z [2026-02-21T07:44:47.796Z] [INFO] [mastra-memory:023ec2df-472b-41b9-a0a8-e36fc50a6f4e] process exited [{"code":null,"signal":"SIGKILL"}]
+2026-02-21T07:44:50.072Z [2026-02-21T07:44:50.071Z] [INFO] [backlog:649e9b83-1ffa-4631-bd99-87d211035c6a] LRU eviction — cap reached for backlog
+2026-02-21T07:44:50.072Z [2026-02-21T07:44:50.071Z] [INFO] Creating backlog process for session 3b03ce66-1b53-40be-934d-7733637f0f60 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:50.085Z [2026-02-21T07:44:50.085Z] [INFO] [serena:c853a0c7-2271-405f-a346-18b4f165e9df] LRU eviction — cap reached for serena
+2026-02-21T07:44:50.085Z [2026-02-21T07:44:50.085Z] [INFO] Creating serena process for session 1ab6844f-2ca0-4cb8-9066-19eaa5c8a579 (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:50.148Z [2026-02-21T07:44:50.148Z] [INFO] Creating claude-context process for session 3529331a-476f-4195-b050-0c2c13391e4f (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:50.171Z [2026-02-21T07:44:50.171Z] [INFO] [backlog:649e9b83-1ffa-4631-bd99-87d211035c6a] process exited [{"code":null,"signal":"SIGTERM"}]
+2026-02-21T07:44:50.172Z [2026-02-21T07:44:50.172Z] [INFO] [sequential-thinking:12350eaf-584c-47c5-8dc5-751af8dd372a] LRU eviction — cap reached for sequential-thinking
+2026-02-21T07:44:50.172Z [2026-02-21T07:44:50.172Z] [INFO] Creating sequential-thinking process for session de5de08a-ef76-40c7-8ad8-ac9492c7db4a (cwd: /home/ferreirase/Documents)
+2026-02-21T07:44:50.174Z [2026-02-21T07:44:50.174Z] [INFO] Creating mastra-memory process for session fef1a0da-a067-4b5d-a0ed-3e0d0a00f774 (cwd: /home/ferreirase/Documents/Estudos/AI/ai-memory)
+2026-02-21T07:44:50.275Z [2026-02-21T07:44:50.275Z] [INFO] [serena:c853a0c7-2271-405f-a346-18b4f165e9df] process exited [{"code":143,"signal":null}]
+2026-02-21T07:44:50.671Z [2026-02-21T07:44:50.671Z] [INFO] [sequential-thinking:12350eaf-584c-47c5-8dc5-751af8dd372a] process exited [{"code":null,"signal":"SIGTERM"}]
+2026-02-21T07:44:54.698Z [2026-02-21T07:44:54.697Z] [INFO] [mastra-memory:ed9837db-8a91-4338-b130-ef31717a84fb] process exited [{"code":null,"signal":"SIGKILL"}]
+2026-02-21T07:44:55.482Z [2026-02-21T07:44:55.482Z] [INFO] [claude-context:b918358c-7c32-4a6e-8691-0a2c207eef38] process exited [{"code":null,"signal":"SIGKILL"}]

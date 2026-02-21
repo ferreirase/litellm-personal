@@ -402,7 +402,14 @@ async function handleMcpRequest(
     }
   }
 
-  const sessionId = (req.headers["mcp-session-id"] as string) || randomUUID();
+  let sessionId = req.headers["mcp-session-id"] as string;
+  if (!sessionId) {
+    // Cliente sem session ID (ex: LiteLLM): reutilizar sessão existente se houver
+    const existing = [...sessions.values()]
+      .filter((s) => s.serverName === serverName)
+      .sort((a, b) => b.lastActivity - a.lastActivity)[0];
+    sessionId = existing?.id ?? randomUUID();
+  }
   const key = sessionKey(serverName, sessionId);
   let session = sessions.get(key);
 
