@@ -40,6 +40,7 @@ services:
       # Session management
       - SESSION_IDLE_TIMEOUT_MS=${SESSION_IDLE_TIMEOUT_MS:-1800000}
       - SESSION_MAX_PER_SERVER=${SESSION_MAX_PER_SERVER:-10}
+      - INIT_CONCURRENCY=${INIT_CONCURRENCY:-3}
     depends_on:
       mastra-memory-db:
         condition: service_healthy

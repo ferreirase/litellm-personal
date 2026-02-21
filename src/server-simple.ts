@@ -110,6 +110,31 @@ interface Session {
 // Key: "${serverName}:${sessionId}"
 const sessions = new Map<string, Session>();
 
+// Semáforo: no máximo N subprocessos inicializando ao mesmo tempo
+const INIT_CONCURRENCY = parseInt(process.env.INIT_CONCURRENCY || "3");
+let activeInits = 0;
+const initQueue: Array<() => void> = [];
+
+function acquireInitSlot(): Promise<void> {
+  return new Promise((resolve) => {
+    if (activeInits < INIT_CONCURRENCY) {
+      activeInits++;
+      resolve();
+    } else {
+      initQueue.push(() => { activeInits++; resolve(); });
+    }
+  });
+}
+
+function releaseInitSlot(): void {
+  const next = initQueue.shift();
+  if (next) {
+    next();
+  } else {
+    activeInits--;
+  }
+}
+
 const SESSION_IDLE_TIMEOUT_MS = parseInt(
   process.env.SESSION_IDLE_TIMEOUT_MS || "1800000",
 ); // 30 min default
@@ -210,6 +235,11 @@ function createMcpProcess(
       signal,
     });
     sessions.delete(sessionKey(serverName, sessionId));
+    // Rejeitar imediatamente todas as requisições em voo
+    for (const [, { reject }] of session.pendingRequests) {
+      reject(new Error(`subprocess exited (code=${code}, signal=${signal})`));
+    }
+    session.pendingRequests.clear();
   });
 
   return session;
@@ -270,6 +300,8 @@ async function sendToMcp(
  * initialize → initialized notification
  */
 async function initializeSession(session: Session): Promise<void> {
+  await acquireInitSlot();
+  try {
   logger.info(`[${session.serverName}:${session.id}] initializing...`);
 
   // Give the process a moment to start
@@ -299,6 +331,9 @@ async function initializeSession(session: Session): Promise<void> {
   });
 
   logger.info(`[${session.serverName}:${session.id}] ready`);
+  } finally {
+    releaseInitSlot();
+  }
 }
 
 /**
