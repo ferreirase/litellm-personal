@@ -9,11 +9,20 @@ services:
     volumes:
       # Mount home directory with same path structure
       - /home/ferreirase:/home/ferreirase
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+          cpus: '1.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
     environment:
       # Workspace path inside container (allow full access)
       - WORKSPACE_PATH=/home/ferreirase/Documents
       - VECTOR_DB_PROVIDER=milvus
       - MILVUS_ADDRESS=milvus-standalone:19530
+      - NODE_OPTIONS=--max-old-space-size=512
       # Node environment
       - NODE_ENV=production
       # Log level (debug, info, warn, error)
