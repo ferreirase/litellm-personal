@@ -114,7 +114,7 @@ const SESSION_IDLE_TIMEOUT_MS = parseInt(
   process.env.SESSION_IDLE_TIMEOUT_MS || "1800000",
 ); // 30 min default
 const SESSION_MAX_PER_SERVER = parseInt(
-  process.env.SESSION_MAX_PER_SERVER || "5",
+  process.env.SESSION_MAX_PER_SERVER || "10",
 );
 
 setInterval(() => {
@@ -377,10 +377,15 @@ async function handleMcpRequest(
       (s) => s.serverName === serverName,
     );
     if (serverSessions.length >= SESSION_MAX_PER_SERVER) {
-      res.status(429).json({
-        error: `Max sessions (${SESSION_MAX_PER_SERVER}) reached for ${serverName}`,
-      });
-      return;
+      const oldest = serverSessions.reduce((a, b) =>
+        a.lastActivity < b.lastActivity ? a : b,
+      );
+      const oldestKey = sessionKey(oldest.serverName, oldest.id);
+      logger.info(
+        `[${oldestKey}] LRU eviction — cap reached for ${serverName}`,
+      );
+      oldest.process.kill("SIGTERM");
+      sessions.delete(oldestKey);
     }
 
     session = createMcpProcess(serverName, sessionId, config, resolvedCwd);
