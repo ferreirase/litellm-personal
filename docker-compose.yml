@@ -12,17 +12,17 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1.5G
-          cpus: '1.5'
+          memory: ${GATEWAY_MEMORY_LIMIT:-1.5G}
+          cpus: '${GATEWAY_CPU_LIMIT:-1.5}'
         reservations:
-          memory: 512M
-          cpus: '0.25'
+          memory: ${GATEWAY_MEMORY_RESERVATION:-512M}
+          cpus: '${GATEWAY_CPU_RESERVATION:-0.25}'
     environment:
       # Workspace path inside container (allow full access)
       - WORKSPACE_PATH=/home/ferreirase/Documents
       - VECTOR_DB_PROVIDER=milvus
       - MILVUS_ADDRESS=milvus-standalone:19530
-      - NODE_OPTIONS=--max-old-space-size=512
+      - NODE_OPTIONS=--max-old-space-size=${GATEWAY_V8_HEAP_MB:-512}
       # Node environment
       - NODE_ENV=production
       # Log level (debug, info, warn, error)
