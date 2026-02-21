@@ -21,7 +21,7 @@ app.use(
     exposedHeaders: ["Mcp-Session-Id"],
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 // --- MCP Server Registry ---
 
@@ -104,10 +104,29 @@ interface Session {
     { resolve: Function; reject: Function }
   >;
   cwd: string;
+  lastActivity: number;
 }
 
 // Key: "${serverName}:${sessionId}"
 const sessions = new Map<string, Session>();
+
+const SESSION_IDLE_TIMEOUT_MS = parseInt(
+  process.env.SESSION_IDLE_TIMEOUT_MS || "1800000",
+); // 30 min default
+const SESSION_MAX_PER_SERVER = parseInt(
+  process.env.SESSION_MAX_PER_SERVER || "5",
+);
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, session] of sessions) {
+    if (now - session.lastActivity > SESSION_IDLE_TIMEOUT_MS) {
+      logger.info(`[${key}] idle timeout — killing subprocess`);
+      session.process.kill("SIGTERM");
+      sessions.delete(key);
+    }
+  }
+}, 60_000);
 
 function sessionKey(serverName: string, sessionId: string): string {
   return `${serverName}:${sessionId}`;
@@ -142,13 +161,14 @@ function createMcpProcess(
     buffer: "",
     pendingRequests: new Map(),
     cwd: resolvedCwd,
+    lastActivity: Date.now(),
   };
 
   // Handle stdout - parse newline-delimited JSON-RPC
   proc.stdout?.on("data", (data: Buffer) => {
-    session.buffer += data.toString();
-
-    const lines = session.buffer.split("\n");
+    const incoming = data.toString();
+    const combined = session.buffer + incoming;
+    const lines = combined.split("\n");
     session.buffer = lines.pop() || "";
 
     for (const line of lines) {
@@ -206,6 +226,7 @@ async function sendToMcp(
   timeoutMs = 30000,
 ): Promise<any> {
   return new Promise((resolve, reject) => {
+    session.lastActivity = Date.now();
     const messageStr = JSON.stringify(message) + "\n";
     logger.debug(`[${session.serverName}:${session.id}] sending:`, message);
 
@@ -352,6 +373,16 @@ async function handleMcpRequest(
 
   // Create + initialize new session if needed
   if (!session) {
+    const serverSessions = [...sessions.values()].filter(
+      (s) => s.serverName === serverName,
+    );
+    if (serverSessions.length >= SESSION_MAX_PER_SERVER) {
+      res.status(429).json({
+        error: `Max sessions (${SESSION_MAX_PER_SERVER}) reached for ${serverName}`,
+      });
+      return;
+    }
+
     session = createMcpProcess(serverName, sessionId, config, resolvedCwd);
     sessions.set(key, session);
 

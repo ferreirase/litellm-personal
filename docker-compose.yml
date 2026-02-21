@@ -37,6 +37,9 @@ services:
       - NODE_BINARY=${NODE_BINARY:-/home/ferreirase/.nvm/versions/node/v22.21.1/bin/node}
       - MASTRA_DATABASE_URL=${MASTRA_DATABASE_URL:-postgresql://mastra:mastra_password@mastra-memory-db:5432/mastra_memory}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      # Session management
+      - SESSION_IDLE_TIMEOUT_MS=${SESSION_IDLE_TIMEOUT_MS:-1800000}
+      - SESSION_MAX_PER_SERVER=${SESSION_MAX_PER_SERVER:-5}
     depends_on:
       mastra-memory-db:
         condition: service_healthy
