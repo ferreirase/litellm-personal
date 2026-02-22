@@ -407,6 +407,7 @@ async function handleMcpRequest(
     // Cliente sem session ID (ex: LiteLLM): reutilizar sessão existente se houver
     const existing = [...sessions.values()]
       .filter((s) => s.serverName === serverName)
+      .filter((s) => !config.allowCwdOverride || s.cwd === resolvedCwd)
       .sort((a, b) => b.lastActivity - a.lastActivity)[0];
     sessionId = existing?.id ?? randomUUID();
   }
