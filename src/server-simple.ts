@@ -105,6 +105,11 @@ interface Session {
 // Key: "${serverName}:${sessionId}"
 const sessions = new Map<string, Session>();
 
+// Tracks ongoing backlog init processes keyed by projectPath.
+// Allows concurrent callers to wait on the same init and triggers session
+// restart once the background init completes.
+const pendingInits = new Map<string, Promise<void>>();
+
 // Semáforo: no máximo N subprocessos inicializando ao mesmo tempo
 const INIT_CONCURRENCY = parseInt(process.env.INIT_CONCURRENCY || "3");
 let activeInits = 0;
@@ -348,9 +353,18 @@ function spawnInit(projectPath: string, projectName: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const env = {
       ...process.env,
+      // Bypass git safe-directory ownership checks (container uid vs host uid)
       GIT_CONFIG_COUNT: "1",
       GIT_CONFIG_KEY_0: "safe.directory",
       GIT_CONFIG_VALUE_0: "*",
+      // Prevent git from prompting for credentials or SSH passphrase,
+      // which would block the process indefinitely in a non-TTY environment.
+      GIT_TERMINAL_PROMPT: "0",
+      GIT_ASKPASS: "echo",
+      GIT_SSH_COMMAND: "ssh -o BatchMode=yes -o StrictHostKeyChecking=no",
+      // Suppress browser auto-open
+      BROWSER: "",
+      DISPLAY: "",
     };
     const proc = spawn("backlog", ["init", "--defaults", projectName], {
       cwd: projectPath,
@@ -561,39 +575,82 @@ async function handleMcpRequest(
 
       const name = projectName || path.basename(projectPath);
 
-      try {
-        await spawnInit(projectPath, name);
-      } catch (err: any) {
+      // How long to wait for spawnInit before returning a "pending" response.
+      // Must be safely below LiteLLM's request timeout (typically 60–120 s).
+      const INIT_RESPONSE_TIMEOUT_MS = 25_000;
+
+      // Restart the session so it picks up the newly created backlog/ folder.
+      const restartSession = async () => {
+        const current = sessions.get(key);
+        if (!current) return;
+        current.process.kill();
+        sessions.delete(key);
+        const newSession = createMcpProcess(serverName, sessionId, config, session.cwd);
+        sessions.set(key, newSession);
+        try {
+          await initializeSession(newSession);
+        } catch (err: any) {
+          logger.error(`Failed to re-initialize session after backlog_init:`, err);
+        }
+      };
+
+      // If another caller already started an init for this path, reuse it.
+      let initPromise = pendingInits.get(projectPath);
+      if (!initPromise) {
+        initPromise = spawnInit(projectPath, name).finally(() =>
+          pendingInits.delete(projectPath),
+        );
+        pendingInits.set(projectPath, initPromise);
+        // When the background init finishes, restart the session regardless of
+        // whether the HTTP response was already sent (timeout path).
+        initPromise.then(restartSession).catch(() => {});
+      }
+
+      const timeout = new Promise<"timeout">((resolve) =>
+        setTimeout(() => resolve("timeout"), INIT_RESPONSE_TIMEOUT_MS),
+      );
+
+      const result = await Promise.race([
+        initPromise.then(() => "done" as const).catch((e: Error) => e),
+        timeout,
+      ]);
+
+      if (result === "timeout") {
+        // Init is still running in the background. Schedule session restart for
+        // when it eventually completes, then tell the agent to retry.
+        initPromise.then(restartSession).catch(() => {});
         res.json({
           jsonrpc: "2.0",
           result: {
-            content: [{ type: "text", text: `Init error: ${err.message}` }],
+            content: [
+              {
+                type: "text",
+                text:
+                  `Backlog initialization is running in the background for "${name}" at ${projectPath}. ` +
+                  `This can take up to 2 minutes on large repositories. ` +
+                  `Please call backlog_init again in ~60 seconds to confirm completion, ` +
+                  `or proceed — the backlog/ directory will be ready shortly.`,
+              },
+            ],
           },
           id: body.id,
         });
         return;
       }
 
-      // Restart the subprocess so it picks up the new backlog/ folder
-      session.process.kill();
-      sessions.delete(key);
-
-      const newSession = createMcpProcess(
-        serverName,
-        sessionId,
-        config,
-        session.cwd,
-      );
-      sessions.set(key, newSession);
-
-      try {
-        await initializeSession(newSession);
-      } catch (err: any) {
-        logger.error(
-          `Failed to re-initialize session after backlog_init:`,
-          err,
-        );
+      if (result instanceof Error) {
+        res.json({
+          jsonrpc: "2.0",
+          result: {
+            content: [{ type: "text", text: `Init error: ${result.message}` }],
+          },
+          id: body.id,
+        });
+        return;
       }
+
+      // result === "done": init completed within the response timeout window.
+      await restartSession();
 
       res.json({
         jsonrpc: "2.0",
