@@ -34,11 +34,6 @@ interface McpServerConfig {
 }
 
 const MCP_SERVERS: Record<string, McpServerConfig> = {
-  "desktop-commander": {
-    command: "npx",
-    args: ["@wonderwhy-er/desktop-commander@latest"],
-    extraEnv: { WORKSPACE_PATH, LOG_LEVEL },
-  },
   "sequential-thinking": {
     command: "npx",
     args: ["@modelcontextprotocol/server-sequential-thinking"],
@@ -665,9 +660,12 @@ app.get("/mcp/servers", (_req, res) => {
   res.json({ servers: Object.keys(MCP_SERVERS) });
 });
 
-// Backward-compat: /mcp → desktop-commander
-app.all("/mcp", async (req, res) => {
-  await handleMcpRequest("desktop-commander", req, res);
+// /mcp sem server path → listar servidores disponíveis
+app.all("/mcp", (_req, res) => {
+  res.status(400).json({
+    error: "Server path required. Use /mcp/:server",
+    available: Object.keys(MCP_SERVERS),
+  });
 });
 
 // /mcp/:server — route to any registered MCP server
