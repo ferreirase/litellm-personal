@@ -48,7 +48,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     # Security: run as non-root user (optional, uncomment if needed)
-    # user: "1000:1000"
+    user: "1000:1000"
     networks:
       - personal-litellm-ukykiw
     healthcheck:

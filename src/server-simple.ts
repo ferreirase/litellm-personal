@@ -177,6 +177,8 @@ function createMcpProcess(
     stdio: ["pipe", "pipe", "pipe"],
     env,
     cwd: resolvedCwd,
+    uid: process.getuid?.(),
+    gid: process.getgid?.(),
   });
 
   const session: Session = {
@@ -353,6 +355,8 @@ function spawnInit(projectPath: string, projectName: string): Promise<void> {
       cwd: projectPath,
       stdio: "pipe",
       env,
+      uid: process.getuid?.(),
+      gid: process.getgid?.(),
     });
     proc.on("exit", (code) =>
       code === 0
