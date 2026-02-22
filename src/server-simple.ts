@@ -359,6 +359,9 @@ function spawnInit(projectPath: string, projectName: string): Promise<void> {
       uid: process.getuid?.(),
       gid: process.getgid?.(),
     });
+    // Drain stdout/stderr to prevent pipe buffer backpressure blocking the process
+    proc.stdout?.resume();
+    proc.stderr?.resume();
     proc.on("exit", (code) =>
       code === 0
         ? resolve()
