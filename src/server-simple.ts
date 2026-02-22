@@ -229,6 +229,11 @@ function createMcpProcess(
 
   proc.on("error", (error: Error) => {
     logger.error(`[${serverName}:${sessionId}] process error:`, error);
+    sessions.delete(sessionKey(serverName, sessionId));
+    for (const [, { reject }] of session.pendingRequests) {
+      reject(new Error(`subprocess error: ${error.message}`));
+    }
+    session.pendingRequests.clear();
   });
 
   proc.on("exit", (code: number | null, signal: string | null) => {
