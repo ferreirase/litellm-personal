@@ -230,8 +230,9 @@ function createMcpProcess(
   proc.on("error", (error: Error) => {
     logger.error(`[${serverName}:${sessionId}] process error:`, error);
     sessions.delete(sessionKey(serverName, sessionId));
+    // Rejeitar imediatamente todas as requisições em voo
     for (const [, { reject }] of session.pendingRequests) {
-      reject(new Error(`subprocess error: ${error.message}`));
+      reject(new Error(`[${serverName}:${sessionId}] subprocess error: ${error.message || (error as any).code || String(error)}`));
     }
     session.pendingRequests.clear();
   });
