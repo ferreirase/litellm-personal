@@ -24,6 +24,7 @@ build/
 # Documentation
 *.md
 !Backlog.md/
+!Backlog.md/**
 docs/
 
 # Environment files
