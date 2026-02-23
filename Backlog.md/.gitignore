@@ -39,7 +39,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .DS_Store
 
 # Claude Code session data
-.claude
+.claude/*
 # But include the agents directory
 !.claude/agents
 !.claude/agents/**
