@@ -167,11 +167,18 @@ function createMcpProcess(
   effectiveCwd?: string,
 ): Session {
   const resolvedCwd = effectiveCwd || config.cwd || WORKSPACE_PATH;
-  logger.info(
-    `Creating ${serverName} process for session ${sessionId} (cwd: ${resolvedCwd})`,
-  );
-
   const env = { ...process.env, ...(config.extraEnv || {}) };
+
+  logger.info(
+    `Creating ${serverName} process for session ${sessionId}`,
+  );
+  logger.info(`  command: ${config.command}`);
+  logger.info(`  args: ${JSON.stringify(config.args)}`);
+  logger.info(`  cwd: ${resolvedCwd}`);
+  logger.info(`  uid: ${process.getuid?.()}, gid: ${process.getgid?.()}`);
+  logger.info(`  PATH: ${env.PATH || "NOT SET"}`);
+  logger.info(`  NODE_ENV: ${env.NODE_ENV || "NOT SET"}`);
+  logger.info(`  platform: ${process.platform}, arch: ${process.arch}`);
 
   const proc = spawn(config.command, config.args, {
     stdio: ["pipe", "pipe", "pipe"],
