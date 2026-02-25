@@ -34,14 +34,14 @@ services:
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-VoyageAI}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-voyage-code-3}
       # Mastra Memory MCP
-      - NODE_BINARY=${NODE_BINARY:-/home/ferreirase/.nvm/versions/node/v24.14.0/bin/node}
+      - NODE_BINARY=/home/ferreirase/.nvm/versions/node/v24.14.0/bin/node}
       - MASTRA_DATABASE_URL=${MASTRA_DATABASE_URL:-postgresql://mastra:mastra_password@mastra-memory-db:5432/mastra_memory}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       # Session management
       - SESSION_IDLE_TIMEOUT_MS=${SESSION_IDLE_TIMEOUT_MS:-1800000}
       - SESSION_MAX_PER_SERVER=${SESSION_MAX_PER_SERVER:-3}
       - INIT_CONCURRENCY=${INIT_CONCURRENCY:-3}
-      - PATH=${GATEWAY_PATH:-/home/ferreirase/.nvm/versions/node/v24.14.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}
+      - PATH=/home/ferreirase/.nvm/versions/node/v24.14.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}
     depends_on:
       mastra-memory-db:
         condition: service_healthy
