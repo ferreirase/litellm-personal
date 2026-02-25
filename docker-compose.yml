@@ -34,7 +34,6 @@ services:
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-VoyageAI}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-voyage-code-3}
       # Mastra Memory MCP
-      - NODE_BINARY=/home/ferreirase/.nvm/versions/node/v24.14.0/bin/node}
       - MASTRA_DATABASE_URL=${MASTRA_DATABASE_URL:-postgresql://mastra:mastra_password@mastra-memory-db:5432/mastra_memory}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       # Session management
