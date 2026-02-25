@@ -35,8 +35,8 @@ interface McpServerConfig {
 
 const MCP_SERVERS: Record<string, McpServerConfig> = {
   "sequential-thinking": {
-    command: "npx",
-    args: ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+    command: "mcp-server-sequential-thinking",
+    args: [],
   },
   "claude-context": {
     command: "node",
@@ -179,6 +179,7 @@ function createMcpProcess(
     cwd: resolvedCwd,
     uid: process.getuid?.(),
     gid: process.getgid?.(),
+    shell: true,
   });
 
   const session: Session = {
