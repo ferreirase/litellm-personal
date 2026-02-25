@@ -35,7 +35,7 @@ interface McpServerConfig {
 
 const MCP_SERVERS: Record<string, McpServerConfig> = {
   "sequential-thinking": {
-    command: "mcp-server-sequential-thinking",
+    command: "/usr/bin/mcp-server-sequential-thinking",
     args: [],
   },
   "claude-context": {
