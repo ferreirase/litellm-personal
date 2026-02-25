@@ -13,10 +13,10 @@ services:
       resources:
         limits:
           memory: ${GATEWAY_MEMORY_LIMIT:-1.5G}
-          cpus: '${GATEWAY_CPU_LIMIT:-1.5}'
+          cpus: "${GATEWAY_CPU_LIMIT:-1.5}"
         reservations:
           memory: ${GATEWAY_MEMORY_RESERVATION:-512M}
-          cpus: '${GATEWAY_CPU_RESERVATION:-0.25}'
+          cpus: "${GATEWAY_CPU_RESERVATION:-0.25}"
     environment:
       # Workspace path inside container (allow full access)
       - WORKSPACE_PATH=/home/ferreirase/Documents
@@ -51,6 +51,7 @@ services:
     user: "1000:1000"
     networks:
       - personal-litellm-ukykiw
+      - dokploy-network # <-- adicionar
     healthcheck:
       test:
         [
@@ -83,6 +84,7 @@ services:
     restart: unless-stopped
     networks:
       - personal-litellm-ukykiw
+      - dokploy-network # <-- adicionar
 
   mastra-memory-db:
     image: pgvector/pgvector:pg16
@@ -102,9 +104,12 @@ services:
     restart: unless-stopped
     networks:
       - personal-litellm-ukykiw
+      - dokploy-network # <-- adicionar
 
 networks:
   personal-litellm-ukykiw:
+    external: true
+  dokploy-network: # <-- adicionar
     external: true
 
 volumes:
