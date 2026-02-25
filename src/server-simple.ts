@@ -35,8 +35,8 @@ interface McpServerConfig {
 
 const MCP_SERVERS: Record<string, McpServerConfig> = {
   "sequential-thinking": {
-    command: "/usr/bin/mcp-server-sequential-thinking",
-    args: [],
+    command: "npx",
+    args: ["-y", "@modelcontextprotocol/server-sequential-thinking"],
   },
   "claude-context": {
     command: "node",
