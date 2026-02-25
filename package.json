@@ -24,6 +24,7 @@
     "@mastra/core": "^1.4.0",
     "@mastra/mcp": "^1.0.1",
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "@modelcontextprotocol/server-sequential-thinking": "*",
     "@types/cors": "^2.8.19",
     "@wonderwhy-er/desktop-commander": "latest",
     "cors": "^2.8.6",

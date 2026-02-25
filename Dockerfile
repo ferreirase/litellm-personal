@@ -42,9 +42,6 @@ RUN npm run build
 COPY --from=backlog-builder /build/dist/backlog /usr/local/bin/backlog
 RUN chmod +x /usr/local/bin/backlog
 
-# Install global MCP CLIs
-RUN npm i -g @modelcontextprotocol/server-sequential-thinking
-
 # Create workspace directory
 RUN mkdir -p /workspace
 
