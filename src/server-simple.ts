@@ -5,7 +5,10 @@ import { spawn, ChildProcess } from "child_process";
 import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import { ConsoleLogger } from "./logger.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PORT = parseInt(process.env.PORT || "8081", 10);
 const WORKSPACE_PATH = process.env.WORKSPACE_PATH || "/workspace";
@@ -38,7 +41,15 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
     command: process.execPath,
     args: [
       "--no-warnings",
-      import.meta.resolve("@modelcontextprotocol/server-sequential-thinking"),
+      path.resolve(
+        __dirname,
+        "..",
+        "node_modules",
+        "@modelcontextprotocol",
+        "server-sequential-thinking",
+        "dist",
+        "index.js",
+      ),
     ],
   },
   "claude-context": {
