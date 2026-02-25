@@ -40,7 +40,6 @@ services:
       - SESSION_IDLE_TIMEOUT_MS=${SESSION_IDLE_TIMEOUT_MS:-1800000}
       - SESSION_MAX_PER_SERVER=${SESSION_MAX_PER_SERVER:-3}
       - INIT_CONCURRENCY=${INIT_CONCURRENCY:-3}
-      - PATH=/home/ferreirase/.nvm/versions/node/v24.14.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}
     depends_on:
       mastra-memory-db:
         condition: service_healthy
