@@ -59,10 +59,12 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD node -e "require('http').get('http://localhost:8081/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
 
 # Set environment variables
+# NODE_BINARY aponta para o node do container (pode ser sobrescrito via compose)
 ENV NODE_ENV=production \
     PORT=8081 \
     WORKSPACE_PATH=/workspace \
-    LOG_LEVEL=info
+    LOG_LEVEL=info \
+    NODE_BINARY=/usr/bin/node
 
 # Run the server
 CMD ["node", "dist/server-simple.js"]
