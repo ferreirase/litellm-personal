@@ -69,7 +69,7 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
     },
   },
   backlog: {
-    command: "backlog",
+    command: "/usr/local/bin/backlog",
     args: ["mcp", "start"],
     cwd: WORKSPACE_PATH,
     allowCwdOverride: true,
@@ -100,6 +100,18 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
     allowCwdOverride: true,
   },
 };
+
+// Validate that absolute-path commands exist on the filesystem at startup
+for (const [name, config] of Object.entries(MCP_SERVERS)) {
+  const cmd = config.command;
+  if (cmd.startsWith("/")) {
+    if (!fs.existsSync(cmd)) {
+      logger.warn(`[${name}] command not found: ${cmd}`);
+    } else {
+      logger.info(`[${name}] command OK: ${cmd}`);
+    }
+  }
+}
 
 // --- Session Management ---
 
@@ -190,9 +202,6 @@ function createMcpProcess(
   logger.info(`  args: ${JSON.stringify(config.args)}`);
   logger.info(`  cwd: ${resolvedCwd}`);
   logger.info(`  uid: ${process.getuid?.()}, gid: ${process.getgid?.()}`);
-  logger.info(`  PATH: ${env.PATH || "NOT SET"}`);
-  logger.info(`  NODE_ENV: ${env.NODE_ENV || "NOT SET"}`);
-  logger.info(`  platform: ${process.platform}, arch: ${process.arch}`);
 
   const proc = spawn(config.command, config.args, {
     stdio: ["pipe", "pipe", "pipe"],
@@ -387,7 +396,7 @@ function spawnInit(projectPath: string, projectName: string): Promise<void> {
       BROWSER: "",
       DISPLAY: "",
     };
-    const proc = spawn("backlog", ["init", "--defaults", projectName], {
+    const proc = spawn("/usr/local/bin/backlog", ["init", "--defaults", projectName], {
       cwd: projectPath,
       stdio: "pipe",
       env,
