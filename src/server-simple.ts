@@ -192,7 +192,13 @@ function createMcpProcess(
   config: McpServerConfig,
   effectiveCwd?: string,
 ): Session {
-  const resolvedCwd = effectiveCwd || config.cwd || WORKSPACE_PATH;
+  let resolvedCwd = effectiveCwd || config.cwd || WORKSPACE_PATH;
+  // Fall back to /app if the resolved cwd doesn't exist (e.g. WORKSPACE_PATH
+  // points to a host path that isn't mounted yet).
+  if (!fs.existsSync(resolvedCwd)) {
+    logger.warn(`[${serverName}] cwd not found: ${resolvedCwd}, falling back to /app`);
+    resolvedCwd = "/app";
+  }
   const env = { ...process.env, ...(config.extraEnv || {}) };
 
   logger.info(
