@@ -885,6 +885,11 @@ app.get("/health", (_req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   logger.info(`MCP Proxy Server v2 listening on port ${PORT}`);
   logger.info(`Workspace: ${WORKSPACE_PATH}`);
+  if (PATH_REWRITE_FROM) {
+    logger.info(`Path rewrite: "${PATH_REWRITE_FROM}" → "${PATH_REWRITE_TO}"`);
+  } else {
+    logger.warn(`Path rewrite: DISABLED (PATH_REWRITE_FROM not set)`);
+  }
   logger.info(`Available servers: ${Object.keys(MCP_SERVERS).join(", ")}`);
   logger.info(`Endpoints:`);
   for (const name of Object.keys(MCP_SERVERS)) {
