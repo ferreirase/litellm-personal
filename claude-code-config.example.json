@@ -1,8 +1,12 @@
 {
   "mcpServers": {
-    "desktop-commander-http": {
-      "url": "http://localhost:8081/mcp",
-      "description": "Desktop Commander MCP server via HTTP - provides filesystem, terminal, and process management tools"
+    "sequential-thinking": {
+      "url": "http://localhost:8085/mcp/sequential-thinking",
+      "description": "Sequential thinking MCP server via HTTP proxy"
+    },
+    "backlog": {
+      "url": "http://localhost:8085/mcp/backlog",
+      "description": "Backlog management MCP server via HTTP proxy"
     }
   }
 }

@@ -53,7 +53,7 @@ docker-up:
 	docker compose up -d
 	@echo ""
 	@echo "Container started! View logs with: make docker-logs"
-	@echo "Health check: http://localhost:8081/health"
+	@echo "Health check: http://localhost:8085/health"
 
 docker-down:
 	docker compose down

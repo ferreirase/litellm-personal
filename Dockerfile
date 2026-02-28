@@ -50,16 +50,16 @@ RUN mkdir -p /workspace
 RUN npm prune --production
 
 # Expose port
-EXPOSE 8081
+EXPOSE 8085
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8081/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
+    CMD node -e "require('http').get('http://localhost:8085/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
 
 # Set environment variables
 # NODE_BINARY aponta para o node do container (pode ser sobrescrito via compose)
 ENV NODE_ENV=production \
-    PORT=8081 \
+    PORT=8085 \
     WORKSPACE_PATH=/workspace \
     LOG_LEVEL=info \
     NODE_BINARY=/usr/bin/node

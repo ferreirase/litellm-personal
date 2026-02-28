@@ -4,7 +4,7 @@
 
 set -e
 
-BASE_URL="http://localhost:8081"
+BASE_URL="http://localhost:8085"
 MCP_ENDPOINT="$BASE_URL/mcp"
 
 echo "🧪 Testing MCP Desktop Commander HTTP Server"

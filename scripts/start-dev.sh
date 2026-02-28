@@ -17,7 +17,7 @@ fi
 
 # Set default environment variables
 export WORKSPACE_PATH=${WORKSPACE_PATH:-/home/ferreirase/Documents}
-export PORT=${PORT:-8081}
+export PORT=${PORT:-8085}
 export LOG_LEVEL=${LOG_LEVEL:-debug}
 export REQUEST_TIMEOUT=${REQUEST_TIMEOUT:-30000}
 

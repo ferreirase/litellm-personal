@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: gateway-mcp
     ports:
-      - "${PORT:-8081}:8081"
+      - "${PORT:-8085}:8085"
     volumes:
       # Mount home directory with same path structure
       - /home/ferreirase:/home/ferreirase
@@ -57,7 +57,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "require('http').get('http://localhost:8081/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));",
+          "require('http').get('http://localhost:8085/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));",
         ]
       interval: 30s
       timeout: 3s

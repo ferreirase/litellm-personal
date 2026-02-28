@@ -34,5 +34,5 @@ docker compose logs --tail=20
 echo ""
 echo "✅ Container rebuilt and started successfully!"
 echo ""
-echo "Health check: http://localhost:8081/health"
-echo "MCP endpoint: http://localhost:8081/mcp"
+echo "Health check: http://localhost:8085/health"
+echo "MCP endpoint: http://localhost:8085/mcp"

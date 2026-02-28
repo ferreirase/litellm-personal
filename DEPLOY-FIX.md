@@ -86,13 +86,13 @@ Após o deploy, verifique:
 
 ```bash
 # 1. Health check
-curl http://seu-dominio:8081/health
+curl http://seu-dominio:8085/health
 
 # 2. Logs do container
 docker logs <container-id>
 
 # 3. Teste MCP initialize
-curl -X POST http://seu-dominio:8081/mcp \
+curl -X POST http://seu-dominio:8085/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
