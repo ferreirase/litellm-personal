@@ -438,45 +438,6 @@ function spawnInit(projectPath: string, projectName: string): Promise<void> {
   });
 }
 
-// Full backlog tools list, discovered at startup via a temporary project.
-// Always returned in tools/list so LiteLLM/Claude knows all tools from the start.
-let backlogDiscoveredTools: any[] | null = null;
-
-async function discoverBacklogTools(): Promise<void> {
-  const tmpDir = path.join("/tmp", `backlog-discovery-${Date.now()}`);
-  try {
-    fs.mkdirSync(tmpDir, { recursive: true });
-
-    // Init a temp project to get backlog to expose all tools
-    await spawnInit(tmpDir, "discovery");
-
-    // Start a temp backlog MCP session
-    const config = MCP_SERVERS.backlog;
-    const tmpSessionId = `discovery-${randomUUID()}`;
-    const tmpSession = createMcpProcess("backlog", tmpSessionId, config, tmpDir);
-
-    try {
-      await initializeSession(tmpSession);
-      const response = await sendToMcp(tmpSession, {
-        jsonrpc: "2.0",
-        method: "tools/list",
-        id: "discovery",
-      });
-      const discovered: any[] = response?.result?.tools || [];
-      backlogDiscoveredTools = discovered;
-      logger.info(
-        `[backlog] discovered ${discovered.length} tools: ${discovered.map((t: any) => t.name).join(", ")}`,
-      );
-    } finally {
-      tmpSession.process.kill();
-    }
-  } catch (err: any) {
-    logger.error(`[backlog] tools discovery failed: ${err.message}`);
-  } finally {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  }
-}
-
 // --- Route handler ---
 
 async function handleMcpRequest(
@@ -649,25 +610,14 @@ async function handleMcpRequest(
   // --- Backlog-specific interceptions ---
 
   if (serverName === "backlog") {
-    // tools/list: return full tools set (discovered at startup) + synthetics
+    // tools/list: return live tools + synthetics, log for diagnostics
     if (body.method === "tools/list") {
       try {
         const response = await sendToMcp(session, body);
         const liveTools: any[] = response?.result?.tools || [];
-
-        // Use discovered tools as base, merging any live tools not already present
-        let mergedTools: any[];
-        if (backlogDiscoveredTools && backlogDiscoveredTools.length > liveTools.length) {
-          const discoveredNames = new Set(backlogDiscoveredTools.map((t: any) => t.name));
-          const extraLive = liveTools.filter((t: any) => !discoveredNames.has(t.name));
-          mergedTools = [...backlogDiscoveredTools, ...extraLive];
-        } else {
-          mergedTools = liveTools;
-          // Update cache if live session returned more tools (session has a project)
-          if (liveTools.length > (backlogDiscoveredTools?.length || 0)) {
-            backlogDiscoveredTools = liveTools;
-          }
-        }
+        logger.info(
+          `[backlog] tools/list returned ${liveTools.length} tools: ${liveTools.map((t: any) => t.name).join(", ")}`,
+        );
 
         const initTool = {
           name: "backlog_init",
@@ -705,7 +655,7 @@ async function handleMcpRequest(
           },
         };
         if (response?.result) {
-          response.result.tools = [...mergedTools, initTool, setProjectTool];
+          response.result.tools = [...liveTools, initTool, setProjectTool];
         }
         res.json(response);
       } catch (error: any) {
@@ -989,11 +939,6 @@ app.listen(PORT, "0.0.0.0", () => {
     logger.info(`  http://localhost:${PORT}/mcp/${name}`);
   }
   logger.info(`Health: http://localhost:${PORT}/health`);
-
-  // Discover backlog tools in background so first tools/list returns the full set
-  discoverBacklogTools().catch((err) =>
-    logger.error(`[backlog] background discovery failed: ${err.message}`),
-  );
 });
 
 // Graceful shutdown
