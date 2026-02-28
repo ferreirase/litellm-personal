@@ -40,6 +40,8 @@ services:
       - SESSION_IDLE_TIMEOUT_MS=${SESSION_IDLE_TIMEOUT_MS:-1800000}
       - SESSION_MAX_PER_SERVER=${SESSION_MAX_PER_SERVER:-3}
       - INIT_CONCURRENCY=${INIT_CONCURRENCY:-3}
+      - PATH_REWRITE_FROM=/home/ferreirase/Documents/homelab
+      - PATH_REWRITE_TO=/home/ferreirase/Documents
     depends_on:
       mastra-memory-db:
         condition: service_healthy

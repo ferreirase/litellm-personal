@@ -13,6 +13,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || "8085", 10);
 const WORKSPACE_PATH = process.env.WORKSPACE_PATH || "/workspace";
 const LOG_LEVEL = (process.env.LOG_LEVEL as any) || "info";
+const PATH_REWRITE_FROM = process.env.PATH_REWRITE_FROM || "";
+const PATH_REWRITE_TO = process.env.PATH_REWRITE_TO || "";
+
+function rewritePath(inputPath: string): string {
+  if (PATH_REWRITE_FROM && inputPath.startsWith(PATH_REWRITE_FROM)) {
+    return PATH_REWRITE_TO + inputPath.slice(PATH_REWRITE_FROM.length);
+  }
+  return inputPath;
+}
 
 const logger = new ConsoleLogger(LOG_LEVEL);
 const app = express();
@@ -446,8 +455,9 @@ async function handleMcpRequest(
   let resolvedCwd = config.cwd || WORKSPACE_PATH;
 
   if (config.allowCwdOverride) {
-    const requestedPath =
+    const rawRequestedPath =
       (req.headers["x-project-path"] as string) || (req.query.path as string);
+    const requestedPath = rawRequestedPath ? rewritePath(rawRequestedPath) : undefined;
     if (requestedPath) {
       if (
         !requestedPath.startsWith(WORKSPACE_PATH) ||
@@ -528,7 +538,7 @@ async function handleMcpRequest(
 
   // --- Generic set_project for servers with allowCwdOverride ---
   if (config.allowCwdOverride && body.method === "tools/call" && body.params?.name === "set_project") {
-    const projectPath = body.params.arguments?.path || "";
+    const projectPath = rewritePath(body.params.arguments?.path || "");
 
     if (!projectPath || !projectPath.startsWith(WORKSPACE_PATH) || !fs.existsSync(projectPath)) {
       res.json({
@@ -635,7 +645,7 @@ async function handleMcpRequest(
 
     // Intercept tools/call for backlog_init before forwarding to subprocess
     if (body.method === "tools/call" && body.params?.name === "backlog_init") {
-      const projectPath = body.params.arguments?.path || "";
+      const projectPath = rewritePath(body.params.arguments?.path || "");
       const projectName = body.params.arguments?.name;
 
       if (
