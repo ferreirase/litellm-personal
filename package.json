@@ -23,6 +23,7 @@
     "@modelcontextprotocol/server-sequential-thinking": "*",
     "@types/cors": "^2.8.19",
     "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
     "express": "^4.21.2",
     "zod": "^3.24.1"
   },
