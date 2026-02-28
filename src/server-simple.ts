@@ -86,22 +86,6 @@ const MCP_SERVERS: Record<string, McpServerConfig> = {
       OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || "",
     },
   },
-  serena: {
-    command: "/home/ferreirase/.local/bin/uvx",
-    args: [
-      "--from",
-      "git+https://github.com/oraios/serena",
-      "serena",
-      "start-mcp-server",
-      "--context",
-      "/home/ferreirase/Documents/Estudos/AI/mcp-to-server/serena-full-context.yml",
-      "--mode",
-      "interactive",
-      "--project-from-cwd",
-    ],
-    cwd: WORKSPACE_PATH,
-    allowCwdOverride: true,
-  },
 };
 
 // Validate that absolute-path commands exist on the filesystem at startup
@@ -545,48 +529,6 @@ async function handleMcpRequest(
       });
     }
     return;
-  }
-
-  // --- Serena-specific interceptions ---
-
-  if (serverName === "serena") {
-    if (body.method === "tools/list") {
-      try {
-        const response = await sendToMcp(session, body);
-        if (response?.result?.tools) {
-          response.result.tools = response.result.tools.filter(
-            (tool: { name: string }) => !tool.name.startsWith("jet_brains_"),
-          );
-        }
-        // Inject set_project for servers with allowCwdOverride
-        if (config.allowCwdOverride && response?.result) {
-          const setProjectTool = {
-            name: "set_project",
-            description:
-              "Switch this MCP session to a different project directory. " +
-              "The session restarts in the new directory. " +
-              "Use this to set the project before using other tools.",
-            inputSchema: {
-              type: "object",
-              properties: {
-                path: { type: "string", description: "Absolute path to the project directory" },
-              },
-              required: ["path"],
-            },
-          };
-          response.result.tools = [...(response.result.tools || []), setProjectTool];
-        }
-        res.json(response);
-      } catch (error: any) {
-        logger.error(`Request failed for session ${key}:`, error);
-        res.status(500).json({
-          jsonrpc: "2.0",
-          error: { code: -32603, message: error.message || "Internal error" },
-          id: body.id ?? null,
-        });
-      }
-      return;
-    }
   }
 
   try {
