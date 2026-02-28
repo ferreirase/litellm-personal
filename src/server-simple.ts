@@ -526,6 +526,56 @@ async function handleMcpRequest(
     return;
   }
 
+  // --- Generic set_project for servers with allowCwdOverride ---
+  if (config.allowCwdOverride && body.method === "tools/call" && body.params?.name === "set_project") {
+    const projectPath = body.params.arguments?.path || "";
+
+    if (!projectPath || !projectPath.startsWith(WORKSPACE_PATH) || !fs.existsSync(projectPath)) {
+      res.json({
+        jsonrpc: "2.0",
+        result: { content: [{ type: "text", text: `Error: invalid path: ${projectPath}` }] },
+        id: body.id,
+      });
+      return;
+    }
+
+    // Already in the correct directory — no restart needed
+    if (session && session.cwd === projectPath) {
+      res.json({
+        jsonrpc: "2.0",
+        result: { content: [{ type: "text", text: `Already in ${projectPath}` }] },
+        id: body.id,
+      });
+      return;
+    }
+
+    // Kill current session and restart in new directory
+    const current = sessions.get(key);
+    if (current) {
+      current.process.kill();
+      sessions.delete(key);
+    }
+
+    const newSession = createMcpProcess(serverName, sessionId, config, projectPath);
+    sessions.set(key, newSession);
+
+    try {
+      await initializeSession(newSession);
+      res.json({
+        jsonrpc: "2.0",
+        result: { content: [{ type: "text", text: `Session switched to ${projectPath}` }] },
+        id: body.id,
+      });
+    } catch (err: any) {
+      res.json({
+        jsonrpc: "2.0",
+        result: { content: [{ type: "text", text: `Error: ${err.message}` }] },
+        id: body.id,
+      });
+    }
+    return;
+  }
+
   // --- Backlog-specific interceptions ---
 
   if (serverName === "backlog") {
@@ -554,8 +604,22 @@ async function handleMcpRequest(
             required: ["path"],
           },
         };
+        const setProjectTool = {
+          name: "set_project",
+          description:
+            "Switch this MCP session to a different project directory. " +
+            "The session restarts in the new directory. " +
+            "Use this to work on a specific project with existing backlog/ folder.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "Absolute path to the project directory" },
+            },
+            required: ["path"],
+          },
+        };
         if (response?.result) {
-          response.result.tools = [...(response.result.tools || []), initTool];
+          response.result.tools = [...(response.result.tools || []), initTool, setProjectTool];
         }
         res.json(response);
       } catch (error: any) {
@@ -571,8 +635,8 @@ async function handleMcpRequest(
 
     // Intercept tools/call for backlog_init before forwarding to subprocess
     if (body.method === "tools/call" && body.params?.name === "backlog_init") {
-      const { path: projectPath, name: projectName } =
-        body.params.arguments || {};
+      const projectPath = body.params.arguments?.path || "";
+      const projectName = body.params.arguments?.name;
 
       if (
         !projectPath ||
@@ -715,6 +779,24 @@ async function handleMcpRequest(
           response.result.tools = response.result.tools.filter(
             (tool: { name: string }) => !tool.name.startsWith("jet_brains_"),
           );
+        }
+        // Inject set_project for servers with allowCwdOverride
+        if (config.allowCwdOverride && response?.result) {
+          const setProjectTool = {
+            name: "set_project",
+            description:
+              "Switch this MCP session to a different project directory. " +
+              "The session restarts in the new directory. " +
+              "Use this to set the project before using other tools.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                path: { type: "string", description: "Absolute path to the project directory" },
+              },
+              required: ["path"],
+            },
+          };
+          response.result.tools = [...(response.result.tools || []), setProjectTool];
         }
         res.json(response);
       } catch (error: any) {
