@@ -30,7 +30,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --production=false
+RUN npm ci
 
 # Copy source code
 COPY tsconfig.json ./
@@ -47,7 +47,7 @@ RUN chmod +x /usr/local/bin/backlog
 RUN mkdir -p /workspace
 
 # Remove dev dependencies for production
-RUN npm prune --production
+RUN npm prune --omit=dev
 
 # Expose port
 EXPOSE 8085
