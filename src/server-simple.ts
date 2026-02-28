@@ -418,14 +418,22 @@ function spawnInit(projectPath: string, projectName: string): Promise<void> {
       uid: process.getuid?.(),
       gid: process.getgid?.(),
     });
-    // Drain stdout/stderr to prevent pipe buffer backpressure blocking the process
-    proc.stdout?.resume();
-    proc.stderr?.resume();
-    proc.on("exit", (code) =>
-      code === 0
-        ? resolve()
-        : reject(new Error(`backlog init exited with code ${code}`)),
-    );
+    // Capture stdout/stderr for diagnostics
+    let stdout = "";
+    let stderr = "";
+    proc.stdout?.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
+    proc.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    proc.on("exit", (code) => {
+      if (stdout.trim()) logger.debug(`[backlog init] stdout: ${stdout.trim()}`);
+      if (stderr.trim()) logger.warn(`[backlog init] stderr: ${stderr.trim()}`);
+      if (code === 0) {
+        logger.info(`[backlog init] completed successfully for ${projectPath}`);
+        resolve();
+      } else {
+        logger.error(`[backlog init] exited with code ${code} for ${projectPath}`);
+        reject(new Error(`backlog init exited with code ${code}\nstdout: ${stdout}\nstderr: ${stderr}`));
+      }
+    });
     proc.on("error", reject);
   });
 }
@@ -571,9 +579,22 @@ async function handleMcpRequest(
 
     try {
       await initializeSession(newSession);
+      // Fetch tools from the new session so the client knows what's available
+      let toolNames: string[] = [];
+      try {
+        const toolsResponse = await sendToMcp(newSession, {
+          jsonrpc: "2.0",
+          method: "tools/list",
+          id: `set_project_tools_${Date.now()}`,
+        });
+        toolNames = (toolsResponse?.result?.tools || []).map((t: { name: string }) => t.name);
+      } catch { /* ignore — tools discovery is best-effort */ }
+      const toolsInfo = toolNames.length > 0
+        ? `\nAvailable tools (${toolNames.length}): ${toolNames.join(", ")}`
+        : "";
       res.json({
         jsonrpc: "2.0",
-        result: { content: [{ type: "text", text: `Session switched to ${projectPath}` }] },
+        result: { content: [{ type: "text", text: `Session switched to ${projectPath}${toolsInfo}` }] },
         id: body.id,
       });
     } catch (err: any) {
@@ -763,13 +784,30 @@ async function handleMcpRequest(
       // result === "done": init completed within the response timeout window.
       await restartSession();
 
+      // Fetch tools from the restarted session
+      let toolNames: string[] = [];
+      const restartedSession = sessions.get(key);
+      if (restartedSession) {
+        try {
+          const toolsResponse = await sendToMcp(restartedSession, {
+            jsonrpc: "2.0",
+            method: "tools/list",
+            id: `init_tools_${Date.now()}`,
+          });
+          toolNames = (toolsResponse?.result?.tools || []).map((t: { name: string }) => t.name);
+        } catch { /* ignore */ }
+      }
+      const toolsInfo = toolNames.length > 0
+        ? ` Available tools (${toolNames.length}): ${toolNames.join(", ")}`
+        : "";
+
       res.json({
         jsonrpc: "2.0",
         result: {
           content: [
             {
               type: "text",
-              text: `Project "${name}" initialized at ${projectPath}. Backlog tools are now available.`,
+              text: `Project "${name}" initialized at ${projectPath}. Backlog tools are now available.${toolsInfo}`,
             },
           ],
         },
