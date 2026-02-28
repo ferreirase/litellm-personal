@@ -615,13 +615,14 @@ async function handleMcpRequest(
       // Must be safely below LiteLLM's request timeout (typically 60–120 s).
       const INIT_RESPONSE_TIMEOUT_MS = 25_000;
 
-      // Restart the session so it picks up the newly created backlog/ folder.
+      // Restart the session in the project directory so backlog picks up
+      // the newly created backlog/ folder and exposes all tools.
       const restartSession = async () => {
         const current = sessions.get(key);
         if (!current) return;
         current.process.kill();
         sessions.delete(key);
-        const newSession = createMcpProcess(serverName, sessionId, config, session.cwd);
+        const newSession = createMcpProcess(serverName, sessionId, config, projectPath);
         sessions.set(key, newSession);
         try {
           await initializeSession(newSession);
