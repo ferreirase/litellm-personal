@@ -1,17 +1,3 @@
-# ── Stage 1: compilar binário backlog a partir do fonte local ──────────────────
-FROM oven/bun:1.2.23-slim AS backlog-builder
-
-WORKDIR /build
-
-# Copiar apenas os arquivos necessários para install + build
-COPY Backlog.md/bun.lock ./
-COPY Backlog.md/package.json ./
-RUN bun install --frozen-lockfile
-
-COPY Backlog.md/ ./
-RUN bun build --production --compile --minify --outfile=dist/backlog src/cli.ts
-
-# ── Stage 2: produção ──────────────────────────────────────────────────────────
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -38,10 +24,6 @@ COPY src ./src
 
 # Build TypeScript
 RUN npm run build
-
-# Copiar binário backlog compilado do stage builder
-COPY --from=backlog-builder /build/dist/backlog /usr/local/bin/backlog
-RUN chmod +x /usr/local/bin/backlog
 
 # Create workspace directory
 RUN mkdir -p /workspace
