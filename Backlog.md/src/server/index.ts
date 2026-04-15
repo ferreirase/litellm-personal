@@ -6,6 +6,7 @@ import type { ContentStore } from "../core/content-store.ts";
 import { initializeProject } from "../core/init.ts";
 import type { SearchService } from "../core/search-service.ts";
 import { getTaskStatistics } from "../core/statistics.ts";
+import { isCreateLockError } from "../file-system/operations.ts";
 import type { SearchPriorityFilter, SearchResultType, Task, TaskUpdateInput } from "../types/index.ts";
 import { watchConfig } from "../utils/config-watcher.ts";
 import { getVersion } from "../utils/version.ts";
@@ -808,6 +809,10 @@ export class BacklogServer {
 			});
 			return Response.json(createdTask, { status: 201 });
 		} catch (error) {
+			if (isCreateLockError(error)) {
+				const message = error instanceof Error ? error.message : "Failed to create task";
+				return Response.json({ error: message }, { status: 409 });
+			}
 			const message = error instanceof Error ? error.message : "Failed to create task";
 			return Response.json({ error: message }, { status: 400 });
 		}
@@ -1188,6 +1193,9 @@ export class BacklogServer {
 			return Response.json({ success: true });
 		} catch (error) {
 			console.error("Error promoting draft:", error);
+			if (isCreateLockError(error)) {
+				return Response.json({ error: error.message }, { status: 409 });
+			}
 			return Response.json({ error: "Failed to promote draft" }, { status: 500 });
 		}
 	}
@@ -1492,15 +1500,24 @@ export class BacklogServer {
 	private async handleGetStatus(): Promise<Response> {
 		try {
 			const config = await this.core.filesystem.loadConfig();
+			const backlogResolution = this.core.filesystem.resolveBacklogDirectoryInfo();
 			return Response.json({
 				initialized: !!config,
 				projectPath: this.core.filesystem.rootDir,
+				backlogDirectory: backlogResolution.backlogDir,
+				backlogDirectorySource: backlogResolution.source,
+				configLocation: backlogResolution.configSource,
+				rootConfigPath: backlogResolution.rootConfigPath,
 			});
 		} catch (error) {
 			console.error("Error getting status:", error);
 			return Response.json({
 				initialized: false,
 				projectPath: this.core.filesystem.rootDir,
+				backlogDirectory: null,
+				backlogDirectorySource: null,
+				configLocation: null,
+				rootConfigPath: null,
 			});
 		}
 	}
@@ -1509,6 +1526,15 @@ export class BacklogServer {
 		try {
 			const body = await req.json();
 			const projectName = typeof body.projectName === "string" ? body.projectName.trim() : "";
+			const backlogDirectory = typeof body.backlogDirectory === "string" ? body.backlogDirectory.trim() : undefined;
+			const backlogDirectorySource =
+				body.backlogDirectorySource === "backlog" ||
+				body.backlogDirectorySource === ".backlog" ||
+				body.backlogDirectorySource === "custom"
+					? body.backlogDirectorySource
+					: undefined;
+			const configLocation =
+				body.configLocation === "folder" || body.configLocation === "root" ? body.configLocation : undefined;
 			const integrationMode = body.integrationMode as "mcp" | "cli" | "none" | undefined;
 			const mcpClients = Array.isArray(body.mcpClients) ? body.mcpClients : [];
 			const agentInstructions = Array.isArray(body.agentInstructions) ? body.agentInstructions : [];
@@ -1529,6 +1555,9 @@ export class BacklogServer {
 			// Call shared core init function
 			const result = await initializeProject(this.core, {
 				projectName,
+				backlogDirectory,
+				backlogDirectorySource,
+				configLocation,
 				integrationMode: integrationMode || "none",
 				mcpClients,
 				agentInstructions,

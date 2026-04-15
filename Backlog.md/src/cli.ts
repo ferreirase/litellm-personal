@@ -11,7 +11,7 @@ import { type CompletionInstallResult, installCompletion, registerCompletionComm
 import { configureAdvancedSettings } from "./commands/configure-advanced-settings.ts";
 import { registerMcpCommand } from "./commands/mcp.ts";
 import { pickTaskForEditWizard, runTaskCreateWizard, runTaskEditWizard } from "./commands/task-wizard.ts";
-import { DEFAULT_DIRECTORIES } from "./constants/index.ts";
+import { DEFAULT_DIRECTORIES, DEFAULT_FILES } from "./constants/index.ts";
 import { initializeProject } from "./core/init.ts";
 import { buildMilestoneBuckets, collectArchivedMilestoneKeys, milestoneKey } from "./core/milestones.ts";
 import { computeSequences } from "./core/sequences.ts";
@@ -34,7 +34,6 @@ import {
 	type DecisionSearchResult,
 	type Document as DocType,
 	type DocumentSearchResult,
-	EntityType,
 	isLocalEditableTask,
 	type Milestone,
 	type SearchPriorityFilter,
@@ -50,13 +49,15 @@ import { createLoadingScreen } from "./ui/loading.ts";
 import { viewTaskEnhanced } from "./ui/task-viewer-with-search.ts";
 import { scrollableViewer } from "./ui/tui.ts";
 import { type AgentSelectionValue, processAgentSelection } from "./utils/agent-selection.ts";
+import { normalizeProjectBacklogDirectory } from "./utils/backlog-directory.ts";
 import { findBacklogRoot } from "./utils/find-backlog-root.ts";
+import { createMilestoneFilterValueResolver, resolveClosestMilestoneFilterValue } from "./utils/milestone-filter.ts";
 import { hasAnyPrefix } from "./utils/prefix-config.ts";
 import { type RuntimeCwdResolution, resolveRuntimeCwd } from "./utils/runtime-cwd.ts";
 import { formatValidStatuses, getCanonicalStatus, getValidStatuses } from "./utils/status.ts";
 import {
-	buildDefinitionOfDoneItems,
-	normalizeStringList,
+	normalizeDependencies,
+	parseDelimitedStringList,
 	parsePositiveIndexList,
 	processAcceptanceCriteriaOptions,
 	toStringArray,
@@ -425,6 +426,8 @@ program
 	.option("--auto-open-browser <boolean>", "auto-open browser for web UI (default: true)")
 	.option("--install-claude-agent <boolean>", "install Claude Code agent (default: false)")
 	.option("--integration-mode <mode>", "choose how AI tools connect to Backlog.md (mcp, cli, or none)")
+	.option("--backlog-dir <path>", "backlog folder for init: backlog, .backlog, or a custom project-relative path")
+	.option("--config-location <location>", "config location for init: folder or root")
 	.option("--task-prefix <prefix>", "custom task prefix, letters only (default: task)")
 	.option("--defaults", "use default values for all prompts")
 	.action(
@@ -442,6 +445,8 @@ program
 				autoOpenBrowser?: string;
 				installClaudeAgent?: string;
 				integrationMode?: string;
+				backlogDir?: string;
+				configLocation?: string;
 				taskPrefix?: string;
 				defaults?: boolean;
 			},
@@ -479,6 +484,18 @@ program
 					console.log(
 						"Existing backlog project detected. Current configuration will be preserved where not specified.",
 					);
+					if (options.backlogDir) {
+						console.error(
+							"The backlog directory is fixed after initialization. Re-run init without --backlog-dir for this project.",
+						);
+						process.exit(1);
+					}
+					if (options.configLocation) {
+						console.error(
+							"The config location is fixed after initialization. Re-run init without --config-location for this project.",
+						);
+						process.exit(1);
+					}
 				}
 
 				// Helper function to parse boolean strings
@@ -515,6 +532,8 @@ program
 					options.autoOpenBrowser ||
 					options.installClaudeAgent ||
 					options.integrationMode ||
+					options.backlogDir ||
+					options.configLocation ||
 					options.taskPrefix
 				);
 
@@ -547,6 +566,126 @@ program
 					if (!name) {
 						abortInitialization();
 						return;
+					}
+				}
+
+				let backlogDirectory: string | undefined;
+				let backlogDirectorySource: "backlog" | ".backlog" | "custom" | undefined;
+				let configLocation: "folder" | "root" | undefined;
+				if (!isReInitialization) {
+					const backlogResolution = core.filesystem.resolveBacklogDirectoryInfo();
+					const defaultBacklogDirectory = backlogResolution.backlogDir ?? DEFAULT_DIRECTORIES.BACKLOG;
+					const defaultBacklogSource = backlogResolution.source ?? "backlog";
+					const defaultConfigLocation = backlogResolution.configSource ?? "folder";
+					const normalizedBacklogDirOption = options.backlogDir
+						? normalizeProjectBacklogDirectory(options.backlogDir)
+						: undefined;
+					const normalizedConfigLocation = options.configLocation?.trim().toLowerCase();
+					if (options.backlogDir && !normalizedBacklogDirOption) {
+						console.error(
+							"Invalid --backlog-dir value. Use 'backlog', '.backlog', or a project-relative path inside the project.",
+						);
+						process.exit(1);
+					}
+					if (
+						normalizedConfigLocation &&
+						normalizedConfigLocation !== "folder" &&
+						normalizedConfigLocation !== "root"
+					) {
+						console.error("Invalid --config-location value. Use 'folder' or 'root'.");
+						process.exit(1);
+					}
+
+					if (isNonInteractive) {
+						if (normalizedBacklogDirOption) {
+							backlogDirectory = normalizedBacklogDirOption;
+							backlogDirectorySource =
+								normalizedBacklogDirOption === DEFAULT_DIRECTORIES.BACKLOG ||
+								normalizedBacklogDirOption === DEFAULT_DIRECTORIES.HIDDEN_BACKLOG
+									? (normalizedBacklogDirOption as "backlog" | ".backlog")
+									: "custom";
+						} else {
+							backlogDirectory = defaultBacklogDirectory;
+							backlogDirectorySource = defaultBacklogSource;
+						}
+						configLocation =
+							(normalizedConfigLocation as "folder" | "root" | undefined) ??
+							(backlogDirectorySource === "custom" ? "root" : defaultConfigLocation);
+						if (backlogDirectorySource === "custom" && configLocation !== "root") {
+							console.error("Custom backlog directories require --config-location root.");
+							process.exit(1);
+						}
+					} else {
+						const locationPrompt = await clack.select({
+							message: "Where should Backlog.md store project files?",
+							initialValue: defaultBacklogSource,
+							options: [
+								{
+									label: "backlog/ (default)",
+									value: "backlog",
+									hint: "Store tasks and config in backlog/",
+								},
+								{
+									label: ".backlog/",
+									value: ".backlog",
+									hint: "Store tasks and config in .backlog/",
+								},
+								{
+									label: "Custom project-relative path",
+									value: "custom",
+									hint: `Backlog.md will store project config in ${backlogResolution.rootConfigPath}`,
+								},
+							],
+						});
+						if (clack.isCancel(locationPrompt)) {
+							abortInitialization();
+							return;
+						}
+
+						backlogDirectorySource = locationPrompt as "backlog" | ".backlog" | "custom";
+						if (backlogDirectorySource === "custom") {
+							const customDirectory = await clack.text({
+								message: "Project-relative backlog directory:",
+								defaultValue:
+									defaultBacklogSource === "custom" && defaultBacklogDirectory ? defaultBacklogDirectory : "",
+								validate: (value) => {
+									const normalized = normalizeProjectBacklogDirectory(String(value ?? ""));
+									if (!normalized) {
+										return "Enter a project-relative path inside the current project.";
+									}
+									return undefined;
+								},
+							});
+							if (clack.isCancel(customDirectory)) {
+								abortInitialization();
+								return;
+							}
+							backlogDirectory = normalizeProjectBacklogDirectory(String(customDirectory ?? "")) ?? undefined;
+							configLocation = "root";
+						} else {
+							backlogDirectory = backlogDirectorySource;
+							const configPrompt = await clack.select({
+								message: "Where should Backlog.md store project configuration?",
+								initialValue: defaultConfigLocation,
+								options: [
+									{
+										label: `${backlogDirectorySource}/config.yml`,
+										value: "folder",
+										hint: "Keep config inside the backlog folder",
+									},
+									{
+										label: "backlog.config.yml in project root",
+										value: "root",
+										hint: "Keep config at project root and point to the backlog folder there",
+									},
+								],
+							});
+							if (clack.isCancel(configPrompt)) {
+								abortInitialization();
+								return;
+							}
+							configLocation = configPrompt as "folder" | "root";
+						}
 					}
 				}
 
@@ -941,6 +1080,9 @@ program
 				// Call shared core init function
 				const initResult = await initializeProject(core, {
 					projectName: name,
+					backlogDirectory,
+					backlogDirectorySource,
+					configLocation,
 					integrationMode: integrationMode || "none",
 					mcpClients: [], // MCP clients are handled separately in CLI with interactive prompts
 					agentInstructions: agentFiles,
@@ -994,6 +1136,10 @@ program
 						})
 						.join("\n");
 				const summaryLines: string[] = [`${label("Project Name:")} ${colorize("1", config.projectName)}`];
+				summaryLines.push(`${label("Backlog directory:")} ${backlogDirectory ?? core.filesystem.backlogDirName}`);
+				summaryLines.push(
+					`${label("Config location:")} ${configLocation === "root" ? DEFAULT_FILES.ROOT_CONFIG : "folder config.yml"}`,
+				);
 				if (integrationMode === "cli") {
 					summaryLines.push(`${label("AI Integration:")} ${muted("CLI commands (legacy)")}`);
 					if (agentFiles.length > 0) {
@@ -1123,7 +1269,7 @@ export async function generateNextDocId(core: Core): Promise<string> {
 	const allIds: string[] = [];
 
 	try {
-		const backlogDir = DEFAULT_DIRECTORIES.BACKLOG;
+		const backlogDir = core.filesystem.backlogDirName;
 
 		// Skip remote operations if disabled
 		if (config?.remoteOperations === false) {
@@ -1191,7 +1337,7 @@ export async function generateNextDecisionId(core: Core): Promise<string> {
 	const allIds: string[] = [];
 
 	try {
-		const backlogDir = DEFAULT_DIRECTORIES.BACKLOG;
+		const backlogDir = core.filesystem.backlogDirName;
 
 		// Skip remote operations if disabled
 		if (config?.remoteOperations === false) {
@@ -1250,122 +1396,6 @@ export async function generateNextDecisionId(core: Core): Promise<string> {
 	}
 
 	return `decision-${nextIdNumber}`;
-}
-
-function normalizeDependencies(dependencies: unknown): string[] {
-	if (!dependencies) return [];
-
-	const normalizeList = (values: string[]): string[] =>
-		values
-			.map((value) => value.trim())
-			.filter((value): value is string => value.length > 0)
-			.map((value) => normalizeTaskId(value));
-
-	if (Array.isArray(dependencies)) {
-		return normalizeList(
-			dependencies.flatMap((dep) =>
-				String(dep)
-					.split(",")
-					.map((d) => d.trim()),
-			),
-		);
-	}
-
-	return normalizeList(String(dependencies).split(","));
-}
-
-async function validateDependencies(
-	dependencies: string[],
-	core: Core,
-): Promise<{ valid: string[]; invalid: string[] }> {
-	const valid: string[] = [];
-	const invalid: string[] = [];
-
-	if (dependencies.length === 0) {
-		return { valid, invalid };
-	}
-
-	// Load both tasks and drafts to validate dependencies
-	const [tasks, drafts] = await Promise.all([core.queryTasks(), core.fs.listDrafts()]);
-
-	const knownIds = [...tasks.map((task) => task.id), ...drafts.map((draft) => draft.id)];
-	for (const dep of dependencies) {
-		const match = knownIds.find((id) => taskIdsEqual(dep, id));
-		if (match) {
-			valid.push(match);
-		} else {
-			invalid.push(dep);
-		}
-	}
-
-	return { valid, invalid };
-}
-
-function buildTaskFromOptions(id: string, title: string, options: Record<string, unknown>): Task {
-	const parentInput = options.parent ? String(options.parent) : undefined;
-	const normalizedParent = parentInput ? normalizeTaskId(parentInput) : undefined;
-
-	const createdDate = new Date().toISOString().slice(0, 16).replace("T", " ");
-
-	// Handle dependencies - they will be validated separately
-	const dependencies = normalizeDependencies(options.dependsOn || options.dep);
-
-	// Handle references (URLs or file paths)
-	const references = normalizeStringList(
-		Array.isArray(options.ref)
-			? options.ref.flatMap((r: string) =>
-					String(r)
-						.split(",")
-						.map((s: string) => s.trim()),
-				)
-			: options.ref
-				? String(options.ref)
-						.split(",")
-						.map((s: string) => s.trim())
-				: [],
-	);
-
-	// Handle documentation (URLs or file paths)
-	const documentation = normalizeStringList(
-		Array.isArray(options.doc)
-			? options.doc.flatMap((d: string) =>
-					String(d)
-						.split(",")
-						.map((s: string) => s.trim()),
-				)
-			: options.doc
-				? String(options.doc)
-						.split(",")
-						.map((s: string) => s.trim())
-				: [],
-	);
-
-	// Validate priority option
-	const priority = options.priority ? String(options.priority).toLowerCase() : undefined;
-	const validPriorities = ["high", "medium", "low"];
-	const validatedPriority =
-		priority && validPriorities.includes(priority) ? (priority as "high" | "medium" | "low") : undefined;
-
-	return {
-		id,
-		title,
-		status: options.status ? String(options.status) : "",
-		assignee: options.assignee ? [String(options.assignee)] : [],
-		createdDate,
-		labels: options.labels
-			? String(options.labels)
-					.split(",")
-					.map((l: string) => l.trim())
-					.filter(Boolean)
-			: [],
-		dependencies,
-		references,
-		documentation,
-		rawContent: "",
-		...(options.description || options.desc ? { description: String(options.description || options.desc) } : {}),
-		...(normalizedParent && { parentTaskId: normalizedParent }),
-		...(validatedPriority && { priority: validatedPriority }),
-	};
 }
 
 const taskCmd = program.command("task").aliases(["tasks"]);
@@ -1451,88 +1481,51 @@ taskCmd
 		}
 
 		const createAsDraft = Boolean(options.draft);
-		const id = await core.generateNextId(
-			createAsDraft ? EntityType.Draft : EntityType.Task,
-			createAsDraft ? undefined : options.parent,
-		);
-		const task = buildTaskFromOptions(id, title ?? "", options);
-
-		// Normalize and validate status if provided (case-insensitive)
-		if (options.status) {
-			const canonical = await getCanonicalStatus(String(options.status), core);
-			if (!canonical) {
-				const configuredStatuses = await getValidStatuses(core);
-				console.error(
-					`Invalid status: ${options.status}. Valid statuses are: ${formatValidStatuses(configuredStatuses)}`,
-				);
-				process.exitCode = 1;
-				return;
-			}
-			task.status = canonical;
-		}
-
-		// Validate dependencies if provided
-		if (task.dependencies.length > 0) {
-			const { valid, invalid } = await validateDependencies(task.dependencies, core);
-			if (invalid.length > 0) {
-				console.error(`Error: The following dependencies do not exist: ${invalid.join(", ")}`);
-				console.error("Please create these tasks first or check the task IDs.");
-				process.exitCode = 1;
-				return;
-			}
-			task.dependencies = valid;
-		}
-
-		// Handle acceptance criteria for create command (structured only)
-		const criteria = processAcceptanceCriteriaOptions(options);
-		if (criteria.length > 0) {
-			let idx = 1;
-			task.acceptanceCriteriaItems = criteria.map((text) => ({ index: idx++, text, checked: false }));
-		}
-
-		const config = await core.filesystem.loadConfig();
-		const dodItems = buildDefinitionOfDoneItems({
-			defaults: config?.definitionOfDone,
-			add: toStringArray(options.dod),
-			disableDefaults: options.dodDefaults === false,
-		});
-		if (dodItems) {
-			task.definitionOfDoneItems = dodItems;
-		}
-
-		// Handle implementation plan
-		if (options.plan) {
-			task.implementationPlan = String(options.plan);
-		}
-
-		// Handle implementation notes
-		if (options.notes) {
-			task.implementationNotes = String(options.notes);
-		}
-
-		// Handle final summary
-		if (options.finalSummary) {
-			task.finalSummary = String(options.finalSummary);
-		}
-
 		const usePlainOutput = isPlainRequested(options);
 
-		if (createAsDraft) {
-			const filepath = await core.createDraft(task);
+		try {
+			const criteria = processAcceptanceCriteriaOptions(options);
+			const { task, filePath } = await core.createTaskFromInput({
+				title: title ?? "",
+				description: options.description || options.desc ? String(options.description || options.desc) : undefined,
+				status: createAsDraft ? "Draft" : options.status ? String(options.status) : undefined,
+				assignee: options.assignee ? [String(options.assignee)] : undefined,
+				labels: options.labels
+					? String(options.labels)
+							.split(",")
+							.map((label: string) => label.trim())
+							.filter(Boolean)
+					: undefined,
+				dependencies:
+					options.dependsOn || options.dep ? normalizeDependencies(options.dependsOn || options.dep) : undefined,
+				references: parseDelimitedStringList(options.ref),
+				documentation: parseDelimitedStringList(options.doc),
+				parentTaskId: options.parent ? String(options.parent) : undefined,
+				priority: options.priority ? (String(options.priority).toLowerCase() as "high" | "medium" | "low") : undefined,
+				implementationPlan: options.plan ? String(options.plan) : undefined,
+				implementationNotes: options.notes ? String(options.notes) : undefined,
+				finalSummary: options.finalSummary ? String(options.finalSummary) : undefined,
+				acceptanceCriteria: criteria.map((text) => ({ text, checked: false })),
+				definitionOfDoneAdd: toStringArray(options.dod),
+				disableDefinitionOfDoneDefaults: options.dodDefaults === false,
+			});
+
 			if (usePlainOutput) {
-				console.log(formatTaskPlainText(task, { filePathOverride: filepath }));
+				console.log(formatTaskPlainText(task, { filePathOverride: filePath }));
 				return;
 			}
-			console.log(`Created draft ${task.id}`);
-			console.log(`File: ${filepath}`);
-		} else {
-			const filepath = await core.createTask(task);
-			if (usePlainOutput) {
-				console.log(formatTaskPlainText(task, { filePathOverride: filepath }));
+
+			if (createAsDraft) {
+				console.log(`Created draft ${task.id}`);
+				console.log(`File: ${filePath}`);
 				return;
 			}
+
 			console.log(`Created task ${task.id}`);
-			console.log(`File: ${filepath}`);
+			console.log(`File: ${filePath}`);
+		} catch (error) {
+			console.error(error instanceof Error ? error.message : String(error));
+			process.exitCode = 1;
 		}
 	});
 
@@ -1755,6 +1748,7 @@ taskCmd
 	.description("list tasks grouped by status")
 	.option("-s, --status <status>", "filter tasks by status (case-insensitive)")
 	.option("-a, --assignee <assignee>", "filter tasks by assignee")
+	.option("-m, --milestone <milestone>", "filter tasks by milestone (closest match, case-insensitive)")
 	.option("-p, --parent <taskId>", "filter tasks by parent task ID")
 	.option("--priority <priority>", "filter tasks by priority (high, medium, low)")
 	.option("--sort <field>", "sort tasks by field (priority, id)")
@@ -1772,6 +1766,9 @@ taskCmd
 		}
 		if (options.assignee) {
 			baseFilters.assignee = options.assignee;
+		}
+		if (options.milestone) {
+			baseFilters.milestone = options.milestone;
 		}
 		if (options.priority) {
 			const priorityLower = options.priority.toLowerCase();
@@ -1909,6 +1906,7 @@ taskCmd
 		if (options.parent) {
 			activeFilters.push(`Parent: ${normalizeTaskId(String(options.parent))}`);
 		}
+		if (options.milestone) activeFilters.push(`Milestone: ${options.milestone}`);
 		if (options.priority) activeFilters.push(`Priority: ${options.priority}`);
 		if (options.sort) activeFilters.push(`Sort: ${options.sort}`);
 
@@ -1916,8 +1914,34 @@ taskCmd
 			filterDescription = activeFilters.join(", ");
 			title = `Tasks (${activeFilters.join(" • ")})`;
 		}
+		const initialUnifiedFilter: {
+			status?: string;
+			assignee?: string;
+			milestone?: string;
+			priority?: string;
+			sort?: string;
+			title?: string;
+			filterDescription?: string;
+			parentTaskId?: string;
+		} = {
+			status: options.status,
+			assignee: options.assignee,
+			milestone: options.milestone,
+			priority: options.priority,
+			sort: options.sort,
+			title,
+			filterDescription,
+			parentTaskId: parentId,
+		};
 
 		const { runUnifiedView } = await import("./ui/unified-view.ts");
+		const interactiveLoaderFilters: TaskListFilter = {};
+		if (options.assignee) {
+			interactiveLoaderFilters.assignee = options.assignee;
+		}
+		if (parentId) {
+			interactiveLoaderFilters.parentTaskId = parentId;
+		}
 		await runUnifiedView({
 			core,
 			initialView: "task-list",
@@ -1934,7 +1958,9 @@ taskCmd
 				// Now query with filters - this will use the already-populated ContentStore
 				updateProgress("Applying filters...");
 				const [tasks, allTasksForParentCheck] = await Promise.all([
-					core.queryTasks({ filters: baseFilters }),
+					core.queryTasks({
+						filters: Object.keys(interactiveLoaderFilters).length > 0 ? interactiveLoaderFilters : undefined,
+					}),
 					parentId ? core.queryTasks() : Promise.resolve(undefined),
 				]);
 
@@ -1962,20 +1988,30 @@ taskCmd
 					filtered = filtered.filter((task) => task.parentTaskId && taskIdsEqual(parentId, task.parentTaskId));
 				}
 
+				if (options.milestone && filtered.length > 0) {
+					const [activeMilestones, archivedMilestones] = await Promise.all([
+						core.filesystem.listMilestones(),
+						core.filesystem.listArchivedMilestones(),
+					]);
+					const resolveMilestoneFilterValue = createMilestoneFilterValueResolver([
+						...activeMilestones,
+						...archivedMilestones,
+					]);
+					const resolvedMilestone = resolveClosestMilestoneFilterValue(
+						options.milestone,
+						filtered.map((task) => resolveMilestoneFilterValue(task.milestone ?? "")),
+					);
+					if (resolvedMilestone) {
+						initialUnifiedFilter.milestone = resolvedMilestone;
+					}
+				}
+
 				return {
 					tasks: filtered,
 					statuses: config?.statuses || [],
 				};
 			},
-			filter: {
-				status: options.status,
-				assignee: options.assignee,
-				priority: options.priority,
-				sort: options.sort,
-				title,
-				filterDescription,
-				parentTaskId: parentId,
-			},
+			filter: initialUnifiedFilter,
 		});
 		cleanup();
 	});
@@ -2126,13 +2162,6 @@ taskCmd
 			return;
 		}
 
-		const parseCommaSeparated = (value: unknown): string[] => {
-			return toStringArray(value)
-				.flatMap((entry) => String(entry).split(","))
-				.map((entry) => entry.trim())
-				.filter((entry) => entry.length > 0);
-		};
-
 		let canonicalStatus: string | undefined;
 		if (options.status) {
 			const canonical = await getCanonicalStatus(String(options.status), core);
@@ -2208,10 +2237,10 @@ taskCmd
 			return;
 		}
 
-		const labelValues = parseCommaSeparated(options.label);
-		const addLabelValues = parseCommaSeparated(options.addLabel);
-		const removeLabelValues = parseCommaSeparated(options.removeLabel);
-		const assigneeValues = parseCommaSeparated(options.assignee);
+		const labelValues = parseDelimitedStringList(options.label) ?? [];
+		const addLabelValues = parseDelimitedStringList(options.addLabel) ?? [];
+		const removeLabelValues = parseDelimitedStringList(options.removeLabel) ?? [];
+		const assigneeValues = parseDelimitedStringList(options.assignee) ?? [];
 		const acceptanceAdditions = processAcceptanceCriteriaOptions(options);
 		const definitionOfDoneAdditions = toStringArray(options.dod)
 			.map((value) => String(value).trim())
@@ -2220,29 +2249,8 @@ taskCmd
 		const combinedDependencies = [...toStringArray(options.dependsOn), ...toStringArray(options.dep)];
 		const dependencyValues = combinedDependencies.length > 0 ? normalizeDependencies(combinedDependencies) : undefined;
 
-		const referenceValues = toStringArray(options.ref);
-		const normalizedReferences =
-			referenceValues.length > 0
-				? normalizeStringList(
-						referenceValues.flatMap((r: string) =>
-							String(r)
-								.split(",")
-								.map((s: string) => s.trim()),
-						),
-					)
-				: undefined;
-
-		const documentationValues = toStringArray(options.doc);
-		const normalizedDocumentation =
-			documentationValues.length > 0
-				? normalizeStringList(
-						documentationValues.flatMap((d: string) =>
-							String(d)
-								.split(",")
-								.map((s: string) => s.trim()),
-						),
-					)
-				: undefined;
+		const normalizedReferences = parseDelimitedStringList(options.ref);
+		const normalizedDocumentation = parseDelimitedStringList(options.doc);
 
 		const notesAppendValues = toStringArray(options.appendNotes);
 		const finalSummaryAppendValues = toStringArray(options.appendFinalSummary);
@@ -2398,11 +2406,16 @@ taskCmd
 	.action(async (taskId: string) => {
 		const cwd = await requireProjectRoot();
 		const core = new Core(cwd);
-		const success = await core.demoteTask(taskId);
-		if (success) {
-			console.log(`Demoted task ${taskId}`);
-		} else {
-			console.error(`Task ${taskId} not found.`);
+		try {
+			const success = await core.demoteTask(taskId);
+			if (success) {
+				console.log(`Demoted task ${taskId}`);
+			} else {
+				console.error(`Task ${taskId} not found.`);
+			}
+		} catch (error) {
+			console.error(error instanceof Error ? error.message : String(error));
+			process.exitCode = 1;
 		}
 	});
 
@@ -2532,11 +2545,25 @@ draftCmd
 		const cwd = await requireProjectRoot();
 		const core = new Core(cwd);
 		await core.ensureConfigLoaded();
-		const id = await core.generateNextId(EntityType.Draft);
-		const task = buildTaskFromOptions(id, title, options);
-		const filepath = await core.createDraft(task);
-		console.log(`Created draft ${id}`);
-		console.log(`File: ${filepath}`);
+		try {
+			const { task, filePath } = await core.createTaskFromInput({
+				title,
+				description: options.description || options.desc ? String(options.description || options.desc) : undefined,
+				status: "Draft",
+				assignee: options.assignee ? [String(options.assignee)] : undefined,
+				labels: options.labels
+					? String(options.labels)
+							.split(",")
+							.map((label: string) => label.trim())
+							.filter(Boolean)
+					: undefined,
+			});
+			console.log(`Created draft ${task.id}`);
+			console.log(`File: ${filePath}`);
+		} catch (error) {
+			console.error(error instanceof Error ? error.message : String(error));
+			process.exitCode = 1;
+		}
 	});
 
 draftCmd
@@ -2559,11 +2586,16 @@ draftCmd
 	.action(async (taskId: string) => {
 		const cwd = await requireProjectRoot();
 		const core = new Core(cwd);
-		const success = await core.promoteDraft(taskId);
-		if (success) {
-			console.log(`Promoted draft ${taskId}`);
-		} else {
-			console.error(`Draft ${taskId} not found.`);
+		try {
+			const success = await core.promoteDraft(taskId);
+			if (success) {
+				console.log(`Promoted draft ${taskId}`);
+			} else {
+				console.error(`Draft ${taskId} not found.`);
+			}
+		} catch (error) {
+			console.error(error instanceof Error ? error.message : String(error));
+			process.exitCode = 1;
 		}
 	});
 
@@ -2720,8 +2752,6 @@ async function handleBoardView(options: { layout?: string; vertical?: boolean; m
 	const core = new Core(cwd);
 	const config = await core.filesystem.loadConfig();
 
-	const _layout = options.vertical ? "vertical" : (options.layout as "horizontal" | "vertical") || "horizontal";
-	const _maxColumnWidth = config?.maxColumnWidth || 20; // Default for terminal display
 	const statuses = config?.statuses || [];
 
 	// Use unified view for Tab switching support
@@ -3034,8 +3064,6 @@ agentsCmd
 				console.error("No backlog project found. Initialize one first with: backlog init");
 				process.exit(1);
 			}
-
-			const _agentOptions = ["CLAUDE.md", "AGENTS.md", "GEMINI.md", ".github/copilot-instructions.md"] as const;
 
 			const selected = await clack.multiselect({
 				message: "Select agent instruction files to update (space toggles selections; enter confirms)",
@@ -3429,7 +3457,7 @@ configCmd
 					} else if (key === "definitionOfDone") {
 						console.error("definitionOfDone cannot be set directly.");
 						console.error(
-							"Use `backlog config` for interactive editing, update `backlog/config.yml`, or use Web UI Settings.",
+							"Use `backlog config` for interactive editing, update the project config file (`backlog/config.yml`, `.backlog/config.yml`, or `backlog.config.yml`), or use Web UI Settings.",
 						);
 					} else {
 						console.error(`${key} cannot be set directly. Use 'backlog config list-${key}' to view current values.`);

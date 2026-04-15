@@ -1,4 +1,5 @@
-import { formatTaskListXml } from "../../../formatters/task-xml.ts";
+import { basename, join } from "node:path";
+import { isCreateLockError } from "../../../file-system/operations.ts";
 import {
 	isLocalEditableTask,
 	type Milestone,
@@ -7,10 +8,15 @@ import {
 	type TaskListFilter,
 } from "../../../types/index.ts";
 import type { TaskEditArgs, TaskEditRequest } from "../../../types/task-edit-args.ts";
+import {
+	createMilestoneFilterValueResolver,
+	normalizeMilestoneFilterValue,
+	resolveClosestMilestoneFilterValue,
+} from "../../../utils/milestone-filter.ts";
 import { buildTaskUpdateInput } from "../../../utils/task-edit-builder.ts";
 import { createTaskSearchIndex } from "../../../utils/task-search.ts";
-import { sortTasks } from "../../../utils/task-sorting.ts";
-import { McpError } from "../../errors/mcp-errors.ts";
+import { sortByOrdinalAndPriority } from "../../../utils/task-sorting.ts";
+import { BacklogToolError } from "../../errors/mcp-errors.ts";
 import type { McpServer } from "../../server.ts";
 import type { CallToolResult } from "../../types.ts";
 import { milestoneKey } from "../../utils/milestone-resolution.ts";
@@ -22,6 +28,7 @@ export type TaskCreateArgs = {
 	labels?: string[];
 	assignee?: string[];
 	priority?: "high" | "medium" | "low";
+	ordinal?: number;
 	status?: string;
 	milestone?: string;
 	parentTaskId?: string;
@@ -37,6 +44,7 @@ export type TaskCreateArgs = {
 export type TaskListArgs = {
 	status?: string;
 	assignee?: string;
+	milestone?: string;
 	labels?: string[];
 	search?: string;
 	limit?: number;
@@ -168,16 +176,28 @@ export class TaskHandlers {
 		return (status ?? "").trim().toLowerCase() === "draft";
 	}
 
+	private formatTaskSummaryLine(task: Task, options: { includeStatus?: boolean } = {}): string {
+		const priorityIndicator = task.priority ? `[${task.priority.toUpperCase()}] ` : "";
+		const status = task.status || (task.source === "completed" ? "Done" : "");
+		const statusText = options.includeStatus && status ? ` (${status})` : "";
+		return `  ${priorityIndicator}${task.id} - ${task.title}${statusText}`;
+	}
+
 	private async loadTaskOrThrow(id: string): Promise<Task> {
 		const task = await this.core.getTask(id);
 		if (!task) {
-			throw new McpError(`Task not found: ${id}`, "TASK_NOT_FOUND");
+			throw new BacklogToolError(`Task not found: ${id}`, "TASK_NOT_FOUND");
 		}
 		return task;
 	}
 
 	async createTask(args: TaskCreateArgs): Promise<CallToolResult> {
 		try {
+			const rawOrdinal = (args as { ordinal?: unknown }).ordinal;
+			if (rawOrdinal === null) {
+				throw new BacklogToolError("Ordinal must be a non-negative number.", "VALIDATION_ERROR");
+			}
+
 			const acceptanceCriteria =
 				args.acceptanceCriteria
 					?.map((text) => String(text).trim())
@@ -192,6 +212,7 @@ export class TaskHandlers {
 				description: args.description,
 				status: args.status,
 				priority: args.priority,
+				...(typeof rawOrdinal === "number" ? { ordinal: rawOrdinal } : {}),
 				milestone,
 				labels: args.labels,
 				assignee: args.assignee,
@@ -207,10 +228,13 @@ export class TaskHandlers {
 
 			return await formatTaskCallResult(createdTask);
 		} catch (error) {
-			if (error instanceof Error) {
-				throw new McpError(error.message, "VALIDATION_ERROR");
+			if (isCreateLockError(error)) {
+				throw new BacklogToolError(error.message, "OPERATION_FAILED");
 			}
-			throw new McpError(String(error), "VALIDATION_ERROR");
+			if (error instanceof Error) {
+				throw new BacklogToolError(error.message, "VALIDATION_ERROR");
+			}
+			throw new BacklogToolError(String(error), "VALIDATION_ERROR");
 		}
 	}
 
@@ -225,6 +249,24 @@ export class TaskHandlers {
 			if (args.assignee) {
 				drafts = drafts.filter((draft) => (draft.assignee ?? []).includes(args.assignee ?? ""));
 			}
+			if (args.milestone) {
+				const [activeMilestones, archivedMilestones] = await Promise.all([
+					this.core.filesystem.listMilestones(),
+					this.core.filesystem.listArchivedMilestones(),
+				]);
+				const resolveMilestoneFilterValue = createMilestoneFilterValueResolver([
+					...activeMilestones,
+					...archivedMilestones,
+				]);
+				const milestoneFilter = resolveClosestMilestoneFilterValue(
+					args.milestone,
+					drafts.map((draft) => resolveMilestoneFilterValue(draft.milestone ?? "")),
+				);
+				drafts = drafts.filter(
+					(draft) =>
+						normalizeMilestoneFilterValue(resolveMilestoneFilterValue(draft.milestone ?? "")) === milestoneFilter,
+				);
+			}
 
 			const labelFilters = args.labels ?? [];
 			if (labelFilters.length > 0) {
@@ -236,17 +278,31 @@ export class TaskHandlers {
 
 			if (drafts.length === 0) {
 				return {
-					content: [{ type: "text", text: "No tasks found." }],
+					content: [
+						{
+							type: "text",
+							text: "No tasks found.",
+						},
+					],
 				};
 			}
 
-			let sortedDrafts = sortTasks(drafts, "priority");
+			let sortedDrafts = sortByOrdinalAndPriority(drafts);
 			if (typeof args.limit === "number" && args.limit >= 0) {
 				sortedDrafts = sortedDrafts.slice(0, args.limit);
 			}
+			const lines = ["Draft:"];
+			for (const draft of sortedDrafts) {
+				lines.push(this.formatTaskSummaryLine(draft));
+			}
 
 			return {
-				content: [{ type: "text", text: formatTaskListXml(sortedDrafts) }],
+				content: [
+					{
+						type: "text",
+						text: lines.join("\n"),
+					},
+				],
 			};
 		}
 
@@ -257,10 +313,12 @@ export class TaskHandlers {
 		if (args.assignee) {
 			filters.assignee = args.assignee;
 		}
+		if (args.milestone) {
+			filters.milestone = args.milestone;
+		}
 
 		const tasks = await this.core.queryTasks({
 			query: args.search,
-			limit: args.limit,
 			filters: Object.keys(filters).length > 0 ? filters : undefined,
 			includeCrossBranch: false,
 		});
@@ -276,21 +334,76 @@ export class TaskHandlers {
 
 		if (filteredByLabels.length === 0) {
 			return {
-				content: [{ type: "text", text: "No tasks found." }],
+				content: [
+					{
+						type: "text",
+						text: "No tasks found.",
+					},
+				],
 			};
 		}
 
-		const sortedTasks = sortTasks(filteredByLabels, "priority");
+		const config = await this.core.filesystem.loadConfig();
+		const statuses = config?.statuses ?? [];
+
+		const canonicalByLower = new Map<string, string>();
+		for (const status of statuses) {
+			canonicalByLower.set(status.toLowerCase(), status);
+		}
+
+		const grouped = new Map<string, Task[]>();
+		for (const task of filteredByLabels) {
+			const rawStatus = (task.status ?? "").trim();
+			const canonicalStatus = canonicalByLower.get(rawStatus.toLowerCase()) ?? rawStatus;
+			const bucketKey = canonicalStatus || "";
+			const existing = grouped.get(bucketKey) ?? [];
+			existing.push(task);
+			grouped.set(bucketKey, existing);
+		}
+
+		const orderedStatuses = [
+			...statuses.filter((status) => grouped.has(status)),
+			...Array.from(grouped.keys()).filter((status) => !statuses.includes(status)),
+		];
+
+		const contentItems: Array<{ type: "text"; text: string }> = [];
+		let remaining = typeof args.limit === "number" && args.limit >= 0 ? args.limit : undefined;
+		for (const status of orderedStatuses) {
+			const bucket = grouped.get(status) ?? [];
+			const sortedBucket = sortByOrdinalAndPriority(bucket);
+			const limitedBucket = remaining !== undefined ? sortedBucket.slice(0, remaining) : sortedBucket;
+			if (remaining !== undefined) {
+				remaining -= limitedBucket.length;
+			}
+			if (limitedBucket.length === 0) {
+				continue;
+			}
+			const sectionLines: string[] = [`${status || "No Status"}:`];
+			for (const task of limitedBucket) {
+				sectionLines.push(this.formatTaskSummaryLine(task));
+			}
+			contentItems.push({
+				type: "text",
+				text: sectionLines.join("\n"),
+			});
+		}
+
+		if (contentItems.length === 0) {
+			contentItems.push({
+				type: "text",
+				text: "No tasks found.",
+			});
+		}
 
 		return {
-			content: [{ type: "text", text: formatTaskListXml(sortedTasks) }],
+			content: contentItems,
 		};
 	}
 
 	async searchTasks(args: TaskSearchArgs): Promise<CallToolResult> {
 		const query = args.query.trim();
 		if (!query) {
-			throw new McpError("Search query cannot be empty", "VALIDATION_ERROR");
+			throw new BacklogToolError("Search query cannot be empty", "VALIDATION_ERROR");
 		}
 
 		if (this.isDraftStatus(args.status)) {
@@ -307,12 +420,27 @@ export class TaskHandlers {
 
 			if (draftMatches.length === 0) {
 				return {
-					content: [{ type: "text", text: `No tasks found for "${query}".` }],
+					content: [
+						{
+							type: "text",
+							text: `No tasks found for "${query}".`,
+						},
+					],
 				};
 			}
 
+			const lines: string[] = ["Tasks:"];
+			for (const draft of draftMatches) {
+				lines.push(this.formatTaskSummaryLine(draft, { includeStatus: true }));
+			}
+
 			return {
-				content: [{ type: "text", text: formatTaskListXml(draftMatches, { query }) }],
+				content: [
+					{
+						type: "text",
+						text: lines.join("\n"),
+					},
+				],
 			};
 		}
 
@@ -330,12 +458,27 @@ export class TaskHandlers {
 		const taskResults = taskMatches.filter((task) => isLocalEditableTask(task));
 		if (taskResults.length === 0) {
 			return {
-				content: [{ type: "text", text: `No tasks found for "${query}".` }],
+				content: [
+					{
+						type: "text",
+						text: `No tasks found for "${query}".`,
+					},
+				],
 			};
 		}
 
+		const lines: string[] = ["Tasks:"];
+		for (const task of taskResults) {
+			lines.push(this.formatTaskSummaryLine(task, { includeStatus: true }));
+		}
+
 		return {
-			content: [{ type: "text", text: formatTaskListXml(taskResults, { query }) }],
+			content: [
+				{
+					type: "text",
+					text: lines.join("\n"),
+				},
+			],
 		};
 	}
 
@@ -347,7 +490,7 @@ export class TaskHandlers {
 
 		const task = await this.core.getTaskWithSubtasks(args.id);
 		if (!task) {
-			throw new McpError(`Task not found: ${args.id}`, "TASK_NOT_FOUND");
+			throw new BacklogToolError(`Task not found: ${args.id}`, "TASK_NOT_FOUND");
 		}
 		return await formatTaskCallResult(task);
 	}
@@ -357,7 +500,7 @@ export class TaskHandlers {
 		if (draft) {
 			const success = await this.core.archiveDraft(draft.id);
 			if (!success) {
-				throw new McpError(`Failed to archive task: ${args.id}`, "OPERATION_FAILED");
+				throw new BacklogToolError(`Failed to archive task: ${args.id}`, "OPERATION_FAILED");
 			}
 
 			return await formatTaskCallResult(draft, [`Archived draft ${draft.id}.`]);
@@ -366,11 +509,11 @@ export class TaskHandlers {
 		const task = await this.loadTaskOrThrow(args.id);
 
 		if (!isLocalEditableTask(task)) {
-			throw new McpError(`Cannot archive task from another branch: ${task.id}`, "VALIDATION_ERROR");
+			throw new BacklogToolError(`Cannot archive task from another branch: ${task.id}`, "VALIDATION_ERROR");
 		}
 
 		if (this.isDoneStatus(task.status)) {
-			throw new McpError(
+			throw new BacklogToolError(
 				`Task ${task.id} is Done. Done tasks should be completed (moved to the completed folder), not archived. Use task_complete instead.`,
 				"VALIDATION_ERROR",
 			);
@@ -378,7 +521,7 @@ export class TaskHandlers {
 
 		const success = await this.core.archiveTask(task.id);
 		if (!success) {
-			throw new McpError(`Failed to archive task: ${args.id}`, "OPERATION_FAILED");
+			throw new BacklogToolError(`Failed to archive task: ${args.id}`, "OPERATION_FAILED");
 		}
 
 		const refreshed = (await this.core.getTask(task.id)) ?? task;
@@ -389,29 +532,42 @@ export class TaskHandlers {
 		const task = await this.loadTaskOrThrow(args.id);
 
 		if (!isLocalEditableTask(task)) {
-			throw new McpError(`Cannot complete task from another branch: ${task.id}`, "VALIDATION_ERROR");
+			throw new BacklogToolError(`Cannot complete task from another branch: ${task.id}`, "VALIDATION_ERROR");
 		}
 
 		if (!this.isDoneStatus(task.status)) {
-			throw new McpError(
+			throw new BacklogToolError(
 				`Task ${task.id} is not Done. Set status to "Done" with task_edit before completing it.`,
 				"VALIDATION_ERROR",
 			);
 		}
 
+		const filePath = task.filePath ?? null;
+		const completedFilePath = filePath ? join(this.core.filesystem.completedDir, basename(filePath)) : undefined;
+
 		const success = await this.core.completeTask(task.id);
 		if (!success) {
-			throw new McpError(`Failed to complete task: ${args.id}`, "OPERATION_FAILED");
+			throw new BacklogToolError(`Failed to complete task: ${args.id}`, "OPERATION_FAILED");
 		}
 
-		return await formatTaskCallResult(task, [`Completed task ${task.id}.`]);
+		return await formatTaskCallResult(task, [`Completed task ${task.id}.`], {
+			filePathOverride: completedFilePath,
+		});
 	}
 
 	async demoteTask(args: { id: string }): Promise<CallToolResult> {
 		const task = await this.loadTaskOrThrow(args.id);
-		const success = await this.core.demoteTask(task.id, false);
+		let success: boolean;
+		try {
+			success = await this.core.demoteTask(task.id, false);
+		} catch (error) {
+			if (isCreateLockError(error)) {
+				throw new BacklogToolError(error.message, "OPERATION_FAILED");
+			}
+			throw error;
+		}
 		if (!success) {
-			throw new McpError(`Failed to demote task: ${args.id}`, "OPERATION_FAILED");
+			throw new BacklogToolError(`Failed to demote task: ${args.id}`, "OPERATION_FAILED");
 		}
 
 		const refreshed = (await this.core.getTask(task.id)) ?? task;
@@ -420,6 +576,11 @@ export class TaskHandlers {
 
 	async editTask(args: TaskEditRequest): Promise<CallToolResult> {
 		try {
+			const rawOrdinal = (args as { ordinal?: unknown }).ordinal;
+			if (rawOrdinal === null) {
+				throw new BacklogToolError("Ordinal must be a non-negative number.", "VALIDATION_ERROR");
+			}
+
 			const updateInput = buildTaskUpdateInput(args);
 			if (typeof updateInput.milestone === "string") {
 				updateInput.milestone = await this.resolveMilestoneInput(updateInput.milestone);
@@ -428,9 +589,9 @@ export class TaskHandlers {
 			return await formatTaskCallResult(updatedTask);
 		} catch (error) {
 			if (error instanceof Error) {
-				throw new McpError(error.message, "VALIDATION_ERROR");
+				throw new BacklogToolError(error.message, "VALIDATION_ERROR");
 			}
-			throw new McpError(String(error), "VALIDATION_ERROR");
+			throw new BacklogToolError(String(error), "VALIDATION_ERROR");
 		}
 	}
 }

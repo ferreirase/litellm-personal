@@ -4,7 +4,7 @@ import { $ } from "bun";
 import { McpServer } from "../mcp/server.ts";
 import { registerMilestoneTools } from "../mcp/tools/milestones/index.ts";
 import { registerTaskTools } from "../mcp/tools/tasks/index.ts";
-import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
+import { createUniqueTestDir, initializeTestProject, safeCleanup } from "./test-utils.ts";
 
 const getText = (content: unknown[] | undefined, index = 0): string => {
 	const item = content?.[index] as { text?: string } | undefined;
@@ -56,7 +56,7 @@ describe("MCP milestone tools", () => {
 		await $`git config user.name "Test User"`.cwd(TEST_DIR).quiet();
 		await $`git config user.email test@example.com`.cwd(TEST_DIR).quiet();
 
-		await server.initializeProject("Test Project");
+		await initializeTestProject(server, "Test Project");
 
 		const config = await loadConfigOrThrow(server);
 		registerTaskTools(server, config);
@@ -287,10 +287,10 @@ describe("MCP milestone tools", () => {
 			params: { name: "milestone_list", arguments: {} },
 		});
 		const text = getText(list.content);
-		expect(text).toContain("<id>m-0</id>");
-		expect(text).toContain("<title>Release 1.0</title>");
-		expect(text).toContain("<unconfigured>");
-		expect(text).toContain("<milestone>Unconfigured</milestone>");
+		expect(text).toContain("Milestones (1):");
+		expect(text).toContain("m-0: Release 1.0");
+		expect(text).toContain("Milestones found on tasks without files (1):");
+		expect(text).toContain("- Unconfigured");
 	});
 
 	it("archives milestones and hides them from lists", async () => {
@@ -324,10 +324,10 @@ describe("MCP milestone tools", () => {
 			params: { name: "milestone_list", arguments: {} },
 		});
 		const text = getText(list.content);
-		expect(text).not.toContain("<id>m-0</id>");
-		expect(text).not.toContain("<unconfigured>");
-		expect(text).toContain("<archived_on_tasks>");
-		expect(text).toContain("<milestone>m-0</milestone>");
+		expect(text).toContain("Milestones (0):");
+		expect(text).toContain("Milestones found on tasks without files (0):");
+		expect(text).toContain("Archived milestone values still on tasks (1):");
+		expect(text).toContain("- m-0");
 		expect(text).not.toContain("Release 1.0");
 	});
 
@@ -845,8 +845,8 @@ describe("MCP milestone tools", () => {
 			params: { name: "milestone_list", arguments: {} },
 		});
 		const text = getText(listed.content);
-		expect(text).toContain("<archived_on_tasks>");
-		expect(text).toContain("<milestone>m-0</milestone>");
+		expect(text).toContain("Archived milestone values still on tasks (1):");
+		expect(text).toContain("- m-0");
 	});
 
 	it("treats duplicate active titles as unresolved in milestone_list reporting", async () => {
@@ -860,8 +860,8 @@ describe("MCP milestone tools", () => {
 			params: { name: "milestone_list", arguments: {} },
 		});
 		const text = getText(listed.content);
-		expect(text).toContain("<unconfigured>");
-		expect(text).toContain("<milestone>Shared</milestone>");
+		expect(text).toContain("Milestones found on tasks without files (1):");
+		expect(text).toContain("- Shared");
 	});
 
 	it("allocates new milestone IDs from milestone frontmatter IDs before filename IDs", async () => {
@@ -981,8 +981,8 @@ Milestone: Legacy frontmatter ID
 			params: { name: "milestone_list", arguments: {} },
 		});
 		const text = getText(list.content);
-		expect(text).not.toContain("<unconfigured>");
-		expect(text).toContain("<archived_on_tasks>");
-		expect(text).toContain("<milestone>m-0</milestone>");
+		expect(text).toContain("Milestones found on tasks without files (0):");
+		expect(text).toContain("Archived milestone values still on tasks (1):");
+		expect(text).toContain("- m-0");
 	});
 });

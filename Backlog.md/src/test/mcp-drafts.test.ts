@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { $ } from "bun";
 import { McpServer } from "../mcp/server.ts";
 import { registerTaskTools } from "../mcp/tools/tasks/index.ts";
-import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
+import { createUniqueTestDir, initializeTestProject, safeCleanup } from "./test-utils.ts";
 
 const getText = (content: unknown[] | undefined, index = 0): string => {
 	const item = content?.[index] as { text?: string } | undefined;
@@ -32,7 +32,7 @@ describe("MCP draft support via task tools", () => {
 		await $`git config user.name "Test User"`.cwd(TEST_DIR).quiet();
 		await $`git config user.email test@example.com`.cwd(TEST_DIR).quiet();
 
-		await mcpServer.initializeProject("Test Project");
+		await initializeTestProject(mcpServer, "Test Project");
 
 		const config = await loadConfig(mcpServer);
 		registerTaskTools(mcpServer, config);
@@ -58,7 +58,7 @@ describe("MCP draft support via task tools", () => {
 			},
 		});
 
-		expect(getText(createResult.content)).toContain("<id>DRAFT-1</id>");
+		expect(getText(createResult.content)).toContain("Task DRAFT-1 - Draft task");
 
 		const draft = await mcpServer.filesystem.loadDraft("draft-1");
 		expect(draft).not.toBeNull();
@@ -75,15 +75,15 @@ describe("MCP draft support via task tools", () => {
 		});
 
 		const listDraftText = getText(listDrafts.content);
-		expect(listDraftText).toContain("<id>DRAFT-1</id>");
-		expect(listDraftText).toContain("<title>Draft task</title>");
+		expect(listDraftText).toContain("Draft:");
+		expect(listDraftText).toContain("DRAFT-1 - Draft task");
 
 		const viewDraft = await mcpServer.testInterface.callTool({
 			params: { name: "task_view", arguments: { id: "draft-1" } },
 		});
 
 		const viewText = getText(viewDraft.content);
-		expect(viewText).toContain("<id>DRAFT-1</id>");
+		expect(viewText).toContain("Task DRAFT-1 - Draft task");
 	});
 
 	it("promotes and demotes via task_edit status changes", async () => {
@@ -108,7 +108,7 @@ describe("MCP draft support via task tools", () => {
 			},
 		});
 
-		expect(getText(promoteResult.content)).toContain("<id>TASK-1</id>");
+		expect(getText(promoteResult.content)).toContain("Task TASK-1 - Promoted task");
 
 		const promoted = await mcpServer.getTask("task-1");
 		expect(promoted?.status).toBe("To Do");
@@ -128,7 +128,7 @@ describe("MCP draft support via task tools", () => {
 		});
 
 		const demoteText = getText(demoteResult.content);
-		const match = demoteText.match(/<id>(DRAFT-\d+)<\/id>/);
+		const match = demoteText.match(/Task (DRAFT-\d+)/);
 		expect(match).not.toBeNull();
 		const draftId = match?.[1] ?? "";
 
@@ -162,7 +162,7 @@ describe("MCP draft support via task tools", () => {
 		});
 
 		const searchText = getText(searchResult.content);
-		expect(searchText).toContain("<id>DRAFT-1</id>");
+		expect(searchText).toContain("DRAFT-1 - Archive this draft");
 
 		await mcpServer.testInterface.callTool({
 			params: { name: "task_archive", arguments: { id: "draft-1" } },

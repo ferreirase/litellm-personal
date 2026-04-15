@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { $ } from "bun";
 import { McpServer } from "../mcp/server.ts";
 import { registerTaskTools } from "../mcp/tools/tasks/index.ts";
-import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
+import { createUniqueTestDir, initializeTestProject, safeCleanup } from "./test-utils.ts";
 
 const getText = (content: unknown[] | undefined, index = 0): string => {
 	const item = content?.[index] as { text?: string } | undefined;
@@ -30,7 +30,7 @@ describe("MCP final summary", () => {
 		await $`git config user.name "Test User"`.cwd(TEST_DIR).quiet();
 		await $`git config user.email test@example.com`.cwd(TEST_DIR).quiet();
 
-		await mcpServer.initializeProject("MCP Final Summary Project");
+		await initializeTestProject(mcpServer, "MCP Final Summary Project");
 
 		const config = await loadConfig(mcpServer);
 		registerTaskTools(mcpServer, config);
@@ -57,8 +57,8 @@ describe("MCP final summary", () => {
 		});
 
 		const createText = getText(createResult.content);
-		expect(createText).toContain("<id>TASK-1</id>");
-		expect(createText).toContain("<final_summary>");
+		expect(createText).toContain("Task TASK-1 - Summarized task");
+		expect(createText).toContain("Final Summary:");
 		expect(createText).toContain("PR-style summary");
 
 		const createdTask = await mcpServer.getTask("task-1");
@@ -71,7 +71,7 @@ describe("MCP final summary", () => {
 			},
 		});
 		const viewText = getText(viewResult.content);
-		expect(viewText).toContain("<final_summary>");
+		expect(viewText).toContain("Final Summary:");
 		expect(viewText).toContain("PR-style summary");
 	});
 

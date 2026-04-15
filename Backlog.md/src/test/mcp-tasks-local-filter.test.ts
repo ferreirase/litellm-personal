@@ -41,8 +41,8 @@ describe("MCP task tools local filtering", () => {
 			.map((c) => (typeof c === "object" && c && "text" in c ? c.text : ""))
 			.join("\n");
 
-		expect(text).toContain("<id>task-1</id>");
-		expect(text).not.toContain("<id>task-2</id>");
+		expect(text).toContain("task-1 - Local task");
+		expect(text).not.toContain("task-2 - Remote task");
 	});
 
 	it("filters cross-branch tasks out of task_search", async () => {
@@ -58,7 +58,7 @@ describe("MCP task tools local filtering", () => {
 			.map((c) => (typeof c === "object" && c && "text" in c ? c.text : ""))
 			.join("\n");
 
-		expect(text).toContain("<id>task-1</id>");
-		expect(text).not.toContain("<id>task-2</id>");
+		expect(text).toContain("task-1 - Local task");
+		expect(text).not.toContain("task-2 - Remote task");
 	});
 });
