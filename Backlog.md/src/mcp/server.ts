@@ -22,6 +22,7 @@ import { registerWorkflowResources } from "./resources/workflow/index.ts";
 import { registerDefinitionOfDoneTools } from "./tools/definition-of-done/index.ts";
 import { registerDocumentTools } from "./tools/documents/index.ts";
 import { registerMilestoneTools } from "./tools/milestones/index.ts";
+import { registerProjectTools } from "./tools/project/index.ts";
 import { registerTaskTools } from "./tools/tasks/index.ts";
 import { registerWorkflowTools } from "./tools/workflow/index.ts";
 import type {
@@ -201,6 +202,7 @@ export class McpServer extends Core {
 		registerMilestoneTools(this);
 		registerDefinitionOfDoneTools(this);
 		registerDocumentTools(this, config);
+		registerProjectTools(this);
 
 		// Notify client that available tools/resources/prompts changed
 		await this.server.sendToolListChanged();
@@ -210,6 +212,15 @@ export class McpServer extends Core {
 		this.upgraded = true;
 		this.log(`MCP server upgraded to project: ${projectRoot}`, options);
 		return true;
+	}
+
+	/**
+	 * Public hook invoked after the `project_init` tool creates a new project.
+	 * Triggers the same upgrade flow used by roots discovery so fallback-mode
+	 * registrations are replaced with the full toolset.
+	 */
+	public async refreshAfterInit(): Promise<void> {
+		await this.upgradeToProject(this.initialProjectRoot);
 	}
 
 	/**
@@ -225,6 +236,7 @@ export class McpServer extends Core {
 		this.prompts.clear();
 
 		registerInitRequiredResource(this, this.initialProjectRoot);
+		registerProjectTools(this);
 
 		await this.server.sendToolListChanged();
 		await this.server.sendResourceListChanged();
@@ -446,6 +458,7 @@ export async function createMcpServer(projectRoot: string, options: ServerInitOp
 	// and enable roots discovery so the server can find the project via MCP roots
 	if (!config) {
 		registerInitRequiredResource(server, projectRoot);
+		registerProjectTools(server);
 		server.enableRootsDiscovery({ debug: options.debug });
 
 		if (options.debug) {
@@ -462,6 +475,7 @@ export async function createMcpServer(projectRoot: string, options: ServerInitOp
 	registerMilestoneTools(server);
 	registerDefinitionOfDoneTools(server);
 	registerDocumentTools(server, config);
+	registerProjectTools(server);
 
 	if (options.debug) {
 		console.error("MCP server initialised (stdio transport only).");
