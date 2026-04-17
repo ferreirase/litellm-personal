@@ -2,11 +2,18 @@ import {
 	MCP_TASK_CREATION_GUIDE,
 	MCP_TASK_EXECUTION_GUIDE,
 	MCP_TASK_FINALIZATION_GUIDE,
+	MCP_TASK_SCHEMA_REFERENCE,
 	MCP_WORKFLOW_OVERVIEW,
 	MCP_WORKFLOW_OVERVIEW_TOOLS,
 } from "../guidelines/mcp/index.ts";
 
-export const WORKFLOW_GUIDE_KEYS = ["overview", "task-creation", "task-execution", "task-finalization"] as const;
+export const WORKFLOW_GUIDE_KEYS = [
+	"overview",
+	"task-creation",
+	"task-execution",
+	"task-finalization",
+	"task-schema",
+] as const;
 
 export type WorkflowGuideKey = (typeof WORKFLOW_GUIDE_KEYS)[number];
 
@@ -53,6 +60,15 @@ export const WORKFLOW_GUIDES: WorkflowGuideDefinition[] = [
 		description: "Detailed guide for finalizing tasks: Definition of Done, finalization workflow, next steps",
 		mimeType: "text/markdown",
 		resourceText: MCP_TASK_FINALIZATION_GUIDE,
+	},
+	{
+		key: "task-schema",
+		uri: "backlog://schema/task",
+		name: "Task Schema Reference",
+		description:
+			"All fields available when creating and editing tasks: types, limits, required vs optional, and examples",
+		mimeType: "text/markdown",
+		resourceText: MCP_TASK_SCHEMA_REFERENCE,
 	},
 ];
 
