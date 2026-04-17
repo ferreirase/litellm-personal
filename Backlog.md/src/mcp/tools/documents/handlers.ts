@@ -1,3 +1,4 @@
+import { formatDocumentListXml } from "../../../formatters/document-xml.ts";
 import type { Document, DocumentSearchResult } from "../../../types/index.ts";
 import { BacklogToolError } from "../../errors/mcp-errors.ts";
 import type { McpServer } from "../../server.ts";
@@ -31,27 +32,6 @@ export type DocumentSearchArgs = {
 export class DocumentHandlers {
 	constructor(private readonly core: McpServer) {}
 
-	private formatDocumentSummaryLine(document: Document): string {
-		const metadata: string[] = [`type: ${document.type}`, `created: ${document.createdDate}`];
-		if (document.updatedDate) {
-			metadata.push(`updated: ${document.updatedDate}`);
-		}
-		if (document.tags && document.tags.length > 0) {
-			metadata.push(`tags: ${document.tags.join(", ")}`);
-		} else {
-			metadata.push("tags: (none)");
-		}
-		return `  ${document.id} - ${document.title} (${metadata.join(", ")})`;
-	}
-
-	private formatScore(score: number | null): string {
-		if (score === null || score === undefined) {
-			return "";
-		}
-		const invertedScore = 1 - score;
-		return ` [score ${invertedScore.toFixed(3)}]`;
-	}
-
 	private async loadDocumentOrThrow(id: string): Promise<Document> {
 		const document = await this.core.getDocument(id);
 		if (!document) {
@@ -83,16 +63,11 @@ export class DocumentHandlers {
 			};
 		}
 
-		const lines: string[] = ["Documents:"];
-		for (const document of filtered) {
-			lines.push(this.formatDocumentSummaryLine(document));
-		}
-
 		return {
 			content: [
 				{
 					type: "text",
-					text: lines.join("\n"),
+					text: formatDocumentListXml(filtered),
 				},
 			],
 		};
@@ -158,18 +133,14 @@ export class DocumentHandlers {
 			};
 		}
 
-		const lines: string[] = ["Documents:"];
-		for (const result of documents) {
-			const { document } = result;
-			const scoreText = this.formatScore(result.score);
-			lines.push(`  ${document.id} - ${document.title}${scoreText}`);
-		}
-
 		return {
 			content: [
 				{
 					type: "text",
-					text: lines.join("\n"),
+					text: formatDocumentListXml(
+						documents.map((r) => r.document),
+						{ query: args.query },
+					),
 				},
 			],
 		};

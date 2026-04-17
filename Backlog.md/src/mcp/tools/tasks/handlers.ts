@@ -1,5 +1,5 @@
-import { basename, join } from "node:path";
 import { isCreateLockError } from "../../../file-system/operations.ts";
+import { formatTaskListXml } from "../../../formatters/task-xml.ts";
 import {
 	isLocalEditableTask,
 	type Milestone,
@@ -176,13 +176,6 @@ export class TaskHandlers {
 		return (status ?? "").trim().toLowerCase() === "draft";
 	}
 
-	private formatTaskSummaryLine(task: Task, options: { includeStatus?: boolean } = {}): string {
-		const priorityIndicator = task.priority ? `[${task.priority.toUpperCase()}] ` : "";
-		const status = task.status || (task.source === "completed" ? "Done" : "");
-		const statusText = options.includeStatus && status ? ` (${status})` : "";
-		return `  ${priorityIndicator}${task.id} - ${task.title}${statusText}`;
-	}
-
 	private async loadTaskOrThrow(id: string): Promise<Task> {
 		const task = await this.core.getTask(id);
 		if (!task) {
@@ -291,16 +284,12 @@ export class TaskHandlers {
 			if (typeof args.limit === "number" && args.limit >= 0) {
 				sortedDrafts = sortedDrafts.slice(0, args.limit);
 			}
-			const lines = ["Draft:"];
-			for (const draft of sortedDrafts) {
-				lines.push(this.formatTaskSummaryLine(draft));
-			}
 
 			return {
 				content: [
 					{
 						type: "text",
-						text: lines.join("\n"),
+						text: formatTaskListXml(sortedDrafts),
 					},
 				],
 			};
@@ -343,60 +332,18 @@ export class TaskHandlers {
 			};
 		}
 
-		const config = await this.core.filesystem.loadConfig();
-		const statuses = config?.statuses ?? [];
-
-		const canonicalByLower = new Map<string, string>();
-		for (const status of statuses) {
-			canonicalByLower.set(status.toLowerCase(), status);
-		}
-
-		const grouped = new Map<string, Task[]>();
-		for (const task of filteredByLabels) {
-			const rawStatus = (task.status ?? "").trim();
-			const canonicalStatus = canonicalByLower.get(rawStatus.toLowerCase()) ?? rawStatus;
-			const bucketKey = canonicalStatus || "";
-			const existing = grouped.get(bucketKey) ?? [];
-			existing.push(task);
-			grouped.set(bucketKey, existing);
-		}
-
-		const orderedStatuses = [
-			...statuses.filter((status) => grouped.has(status)),
-			...Array.from(grouped.keys()).filter((status) => !statuses.includes(status)),
-		];
-
-		const contentItems: Array<{ type: "text"; text: string }> = [];
-		let remaining = typeof args.limit === "number" && args.limit >= 0 ? args.limit : undefined;
-		for (const status of orderedStatuses) {
-			const bucket = grouped.get(status) ?? [];
-			const sortedBucket = sortByOrdinalAndPriority(bucket);
-			const limitedBucket = remaining !== undefined ? sortedBucket.slice(0, remaining) : sortedBucket;
-			if (remaining !== undefined) {
-				remaining -= limitedBucket.length;
-			}
-			if (limitedBucket.length === 0) {
-				continue;
-			}
-			const sectionLines: string[] = [`${status || "No Status"}:`];
-			for (const task of limitedBucket) {
-				sectionLines.push(this.formatTaskSummaryLine(task));
-			}
-			contentItems.push({
-				type: "text",
-				text: sectionLines.join("\n"),
-			});
-		}
-
-		if (contentItems.length === 0) {
-			contentItems.push({
-				type: "text",
-				text: "No tasks found.",
-			});
+		let allTasks = sortByOrdinalAndPriority(filteredByLabels);
+		if (typeof args.limit === "number" && args.limit >= 0) {
+			allTasks = allTasks.slice(0, args.limit);
 		}
 
 		return {
-			content: contentItems,
+			content: [
+				{
+					type: "text",
+					text: formatTaskListXml(allTasks),
+				},
+			],
 		};
 	}
 
@@ -429,16 +376,11 @@ export class TaskHandlers {
 				};
 			}
 
-			const lines: string[] = ["Tasks:"];
-			for (const draft of draftMatches) {
-				lines.push(this.formatTaskSummaryLine(draft, { includeStatus: true }));
-			}
-
 			return {
 				content: [
 					{
 						type: "text",
-						text: lines.join("\n"),
+						text: formatTaskListXml(draftMatches, { query }),
 					},
 				],
 			};
@@ -467,16 +409,11 @@ export class TaskHandlers {
 			};
 		}
 
-		const lines: string[] = ["Tasks:"];
-		for (const task of taskResults) {
-			lines.push(this.formatTaskSummaryLine(task, { includeStatus: true }));
-		}
-
 		return {
 			content: [
 				{
 					type: "text",
-					text: lines.join("\n"),
+					text: formatTaskListXml(taskResults, { query }),
 				},
 			],
 		};
@@ -542,17 +479,12 @@ export class TaskHandlers {
 			);
 		}
 
-		const filePath = task.filePath ?? null;
-		const completedFilePath = filePath ? join(this.core.filesystem.completedDir, basename(filePath)) : undefined;
-
 		const success = await this.core.completeTask(task.id);
 		if (!success) {
 			throw new BacklogToolError(`Failed to complete task: ${args.id}`, "OPERATION_FAILED");
 		}
 
-		return await formatTaskCallResult(task, [`Completed task ${task.id}.`], {
-			filePathOverride: completedFilePath,
-		});
+		return await formatTaskCallResult(task, [`Completed task ${task.id}.`]);
 	}
 
 	async demoteTask(args: { id: string }): Promise<CallToolResult> {

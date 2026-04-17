@@ -1,3 +1,4 @@
+import { escapeXml } from "../../../formatters/xml-utils.ts";
 import { BacklogToolError } from "../../errors/mcp-errors.ts";
 import type { McpServer } from "../../server.ts";
 import type { CallToolResult } from "../../types.ts";
@@ -14,14 +15,13 @@ function findDelimiterSensitiveItem(items: string[]): string | undefined {
 	return items.find((item) => item.includes(","));
 }
 
-function formatDefinitionOfDoneDefaults(items: string[]): string {
+function formatDefinitionOfDoneDefaultsXml(items: string[]): string {
 	if (items.length === 0) {
-		return "Project Definition of Done defaults (0):\n  (none)";
+		return "<definition_of_done_defaults />";
 	}
 
-	return `Project Definition of Done defaults (${items.length}):\n${items
-		.map((item, index) => `  ${index + 1}. ${item}`)
-		.join("\n")}`;
+	const xmlItems = items.map((item, i) => `  <item index="${i + 1}">${escapeXml(item)}</item>`).join("\n");
+	return `<definition_of_done_defaults>\n${xmlItems}\n</definition_of_done_defaults>`;
 }
 
 export class DefinitionOfDoneHandlers {
@@ -45,7 +45,7 @@ export class DefinitionOfDoneHandlers {
 			content: [
 				{
 					type: "text",
-					text: formatDefinitionOfDoneDefaults(defaults),
+					text: formatDefinitionOfDoneDefaultsXml(defaults),
 				},
 			],
 		};
@@ -71,7 +71,7 @@ export class DefinitionOfDoneHandlers {
 			content: [
 				{
 					type: "text",
-					text: `Updated project Definition of Done defaults.\n\n${formatDefinitionOfDoneDefaults(nextDefaults)}`,
+					text: `Updated project Definition of Done defaults.\n\n${formatDefinitionOfDoneDefaultsXml(nextDefaults)}`,
 				},
 			],
 		};

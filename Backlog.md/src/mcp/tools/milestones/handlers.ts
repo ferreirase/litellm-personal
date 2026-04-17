@@ -1,4 +1,5 @@
 import { rename as moveFile } from "node:fs/promises";
+import { formatMilestoneListXml } from "../../../formatters/milestone-xml.ts";
 import type { Milestone, Task } from "../../../types/index.ts";
 import { BacklogToolError } from "../../errors/mcp-errors.ts";
 import type { McpServer } from "../../server.ts";
@@ -48,13 +49,6 @@ function collectArchivedMilestoneKeys(archivedMilestones: Milestone[], activeMil
 	}
 
 	return Array.from(keys);
-}
-
-function formatListBlock(title: string, items: string[]): string {
-	if (items.length === 0) {
-		return `${title}\n  (none)`;
-	}
-	return `${title}\n${items.map((item) => `  - ${item}`).join("\n")}`;
 }
 
 function formatTaskIdList(taskIds: string[], limit = 20): string {
@@ -319,22 +313,11 @@ export class MilestoneHandlers {
 			.map(([, value]) => value)
 			.sort((a, b) => a.localeCompare(b));
 
-		const blocks: string[] = [];
-		const milestoneLines = fileMilestones.map((m) => `${m.id}: ${m.title}`);
-		blocks.push(formatListBlock(`Milestones (${fileMilestones.length}):`, milestoneLines));
-		blocks.push(formatListBlock(`Milestones found on tasks without files (${unconfigured.length}):`, unconfigured));
-		blocks.push(
-			formatListBlock(`Archived milestone values still on tasks (${archivedTaskValues.length}):`, archivedTaskValues),
-		);
-		blocks.push(
-			"Hint: use milestone_add to create milestone files, milestone_rename / milestone_remove to manage, milestone_archive to archive.",
-		);
-
 		return {
 			content: [
 				{
 					type: "text",
-					text: blocks.join("\n\n"),
+					text: formatMilestoneListXml(fileMilestones, unconfigured, archivedTaskValues),
 				},
 			],
 		};
