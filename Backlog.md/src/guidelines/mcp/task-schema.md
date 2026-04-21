@@ -1,15 +1,57 @@
 ## Task schema reference
 
-Quick reference for all fields available when creating and editing tasks via MCP.
+Complete field reference for creating and editing tasks via MCP.
+
+### Field expectation by scenario
+
+Judge the task and choose the right level of detail — don't pad trivial tasks, don't skimp on substantive ones.
+
+**Substantive task (default)** — fill in all of these:
+- `title`, `description`, `acceptanceCriteria`, `implementationPlan`
+
+**Trivial task** (typo/lint/tiny doc edit) — `title` alone is fine.
+
+**Spike / research task** — `title` + `description`. Skip AC/plan until the spike produces findings.
+
+**Epic / parent task** — `title` + `description`. AC and `implementationPlan` belong on the subtasks, not the parent.
+
+### Quality over presence
+
+Filling a field with placeholder text to satisfy guidance is worse than leaving it empty. Examples:
+
+**Good `acceptanceCriteria`:**
+- "User can log out by clicking the header menu button"
+- "POST /api/sessions returns 401 when token is expired"
+
+**Bad `acceptanceCriteria` (skip these):**
+- "Task is done"
+- "Works correctly"
+- "Code is good"
+
+**Good `implementationPlan`:**
+- "1. Add `logout` route in `routes/auth.ts`. 2. Clear session cookie. 3. Redirect to `/login`. 4. Add test covering expired token edge case."
+
+**Bad `implementationPlan` (skip):**
+- "Implement the feature"
+- "Fix the bug"
 
 ### Creating a task (`task_create`)
 
-Only `title` is required. Everything else is optional.
+Only `title` is required. Judge the task and fill what adds value.
+
+#### Strongly recommended for substantive tasks
 
 | Field | Type | Limits | Notes |
 |-------|------|--------|-------|
-| **title** | string | 1–200 chars | **Required.** |
-| description | string | max 10,000 | Free-form markdown. |
+| **title** | string | 1–200 chars | **Required.** Name the outcome, not the action (e.g. "Add logout button" not "Fix stuff"). |
+| description | string | max 10,000 | Strongly recommended. Brief context — what it is, why it matters. A reviewer should understand the task from this alone. |
+| acceptanceCriteria | string[] | each max 500 chars | Strongly recommended. Concrete, testable items. Each one independently verifiable. Created as unchecked checklist. |
+| implementationPlan | string | max 20,000 | Strongly recommended. Step-by-step approach or outline of how you'll tackle it. |
+
+#### Other optional fields
+
+| Field | Type | Limits | Notes |
+|-------|------|--------|-------|
 | status | string | enum from config | Defaults to the project's first status (e.g. "To Do"). Case-insensitive. |
 | priority | string | `high`, `medium`, `low` | |
 | ordinal | number | ≥ 0 | Manual sort order. Use spaced integers (1000, 2000, 3000). |
@@ -19,7 +61,6 @@ Only `title` is required. Everything else is optional.
 | dependencies | string[] | task IDs, max 50 chars | Validated against existing tasks. |
 | references | string[] | each max 500 chars | URLs, GitHub issues, PRs. |
 | documentation | string[] | each max 500 chars | Design docs, API specs, manuals. |
-| acceptanceCriteria | string[] | each max 500 chars | Created as unchecked checklist items. |
 | definitionOfDoneAdd | string[] | each max 500 chars | Task-specific DoD (appended to project defaults). |
 | disableDefinitionOfDoneDefaults | boolean | | Skip project-level DoD for this task. |
 | parentTaskId | string | max 50 chars | Makes this a subtask. Cannot be changed after creation. |
@@ -88,28 +129,25 @@ Also available on edit: `implementationNotes` (string, max 10k) as an alias for 
 
 Use `definition_of_done_defaults_upsert` to manage project-level DoD defaults (applied to all new tasks).
 
-### Minimal example
+### Minimal example (trivial task)
 
 ```json
-{ "title": "Add login page" }
+{ "title": "Fix typo in README line 42" }
 ```
 
-### Full example
+### Full example (substantive task)
 
 ```json
 {
-  "title": "Add login page",
-  "description": "OAuth2 login with GitHub provider",
-  "status": "To Do",
-  "priority": "high",
-  "milestone": "v1.0",
-  "labels": ["frontend", "auth"],
-  "assignee": ["@alice"],
+  "title": "Add logout button to header menu",
+  "description": "Users currently have no way to log out from the UI. Add a logout item to the user dropdown that terminates the session and redirects to /login.",
+  "implementationPlan": "1. Add menu item in `components/UserMenu.tsx`.\n2. Wire onClick to new `POST /api/sessions/logout` route.\n3. On success, clear session cookie and redirect to /login.\n4. Add test for expired token path.",
   "acceptanceCriteria": [
-    "User can sign in with GitHub",
-    "Session persists across page reload"
+    "Logout option appears in the user dropdown menu",
+    "Clicking it clears the session cookie and redirects to /login",
+    "Expired token does not throw — user is redirected quietly"
   ],
-  "references": ["https://github.com/org/repo/issues/42"],
-  "dependencies": ["TASK-3"]
+  "priority": "medium",
+  "labels": ["auth", "frontend"]
 }
 ```

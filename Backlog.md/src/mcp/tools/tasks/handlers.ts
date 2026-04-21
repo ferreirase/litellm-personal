@@ -32,6 +32,7 @@ export type TaskCreateArgs = {
 	status?: string;
 	milestone?: string;
 	parentTaskId?: string;
+	implementationPlan?: string;
 	acceptanceCriteria?: string[];
 	definitionOfDoneAdd?: string[];
 	disableDefinitionOfDoneDefaults?: boolean;
@@ -213,6 +214,7 @@ export class TaskHandlers {
 				references: args.references,
 				documentation: args.documentation,
 				parentTaskId: args.parentTaskId,
+				implementationPlan: args.implementationPlan,
 				finalSummary: args.finalSummary,
 				acceptanceCriteria,
 				definitionOfDoneAdd: args.definitionOfDoneAdd,

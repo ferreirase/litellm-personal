@@ -39,6 +39,8 @@ export function generateTaskCreateSchema(config: BacklogConfig): JsonSchema {
 			description: {
 				type: "string",
 				maxLength: 10000,
+				description:
+					"Brief context for the task — what it is, why it matters. Strongly recommended for any substantive task. A reviewer or future implementer should understand the task from the description alone.",
 			},
 			status: generateStatusFieldSchema(config),
 			priority: {
@@ -99,12 +101,20 @@ export function generateTaskCreateSchema(config: BacklogConfig): JsonSchema {
 				maxLength: 20000,
 				description: "Final summary for PR-style completion notes. Write this only when the task is complete.",
 			},
+			implementationPlan: {
+				type: "string",
+				maxLength: 20000,
+				description:
+					"Implementation plan — how you intend to tackle this task. Strongly recommended for substantive tasks. Write step-by-step or outline the approach. Skip only for trivial fixes.",
+			},
 			acceptanceCriteria: {
 				type: "array",
 				items: {
 					type: "string",
 					maxLength: 500,
 				},
+				description:
+					"Concrete, testable acceptance criteria. Strongly recommended for substantive tasks. Each item should be independently verifiable (e.g. 'User can log out via button X'). Skip only for trivial fixes.",
 			},
 			definitionOfDoneAdd: {
 				type: "array",

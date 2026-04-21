@@ -67,6 +67,18 @@ When scope requires multiple tasks:
 
 Create all tasks in the same session to maintain consistency and context.
 
+### Before calling `task_create` — quality checklist
+
+For any substantive task, confirm you have:
+- [ ] A clear **title** that names the outcome (not "Fix stuff")
+- [ ] A **description** that gives enough context for a stranger to understand the task
+- [ ] Concrete, testable **acceptanceCriteria** (each item independently verifiable)
+- [ ] An **implementationPlan** outlining how you'll tackle it
+
+For trivial tasks (typo fix, tiny doc tweak), `title` alone is fine — don't invent AC/plan to look thorough.
+
+See `backlog://schema/task` for the full field reference and examples.
+
 ### Step 5: Create task(s) with proper scope
 
 **Title and description**: Explain desired outcome and user value (the WHY). Keep the description focused on outcome and essential handoff context.
