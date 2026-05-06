@@ -1,6 +1,6 @@
 import type { Task } from "../types/index.ts";
 import { sortByTaskId } from "../utils/task-sorting.ts";
-import { cdata, escapeXml } from "./xml-utils.ts";
+import { escapeXml } from "./xml-utils.ts";
 
 function normalizeAt(s: string): string {
 	return s.startsWith("@") ? s : `@${s}`;
@@ -65,8 +65,11 @@ export function formatTaskXml(task: Task): string {
 
 	// Parent
 	if (task.parentTaskId) {
-		const title = task.parentTaskTitle ? escapeXml(task.parentTaskTitle) : escapeXml(task.parentTaskId);
-		lines.push(`    <parent id="${escapeXml(task.parentTaskId)}">${title}</parent>`);
+		lines.push("    <parent>");
+		lines.push(`      <id>${escapeXml(task.parentTaskId)}</id>`);
+		const title = task.parentTaskTitle ?? task.parentTaskId;
+		lines.push(`      <title>${escapeXml(title)}</title>`);
+		lines.push("    </parent>");
 	}
 
 	// Subtasks
@@ -75,13 +78,19 @@ export function formatTaskXml(task: Task): string {
 		const sorted = sortByTaskId(subtaskSummaries);
 		lines.push("    <subtasks>");
 		for (const subtask of sorted) {
-			lines.push(`      <subtask id="${escapeXml(subtask.id)}">${escapeXml(subtask.title)}</subtask>`);
+			lines.push("      <subtask>");
+			lines.push(`        <id>${escapeXml(subtask.id)}</id>`);
+			lines.push(`        <title>${escapeXml(subtask.title)}</title>`);
+			lines.push("      </subtask>");
 		}
 		lines.push("    </subtasks>");
 	} else if (task.subtasks?.length) {
 		lines.push("    <subtasks>");
 		for (const subtaskId of task.subtasks) {
-			lines.push(`      <subtask id="${escapeXml(subtaskId)}">${escapeXml(subtaskId)}</subtask>`);
+			lines.push("      <subtask>");
+			lines.push(`        <id>${escapeXml(subtaskId)}</id>`);
+			lines.push(`        <title>${escapeXml(subtaskId)}</title>`);
+			lines.push("      </subtask>");
 		}
 		lines.push("    </subtasks>");
 	}
@@ -108,7 +117,11 @@ export function formatTaskXml(task: Task): string {
 
 	// Description (always present)
 	const description = task.description?.trim() ?? "";
-	lines.push(`  <description>${cdata(description)}</description>`);
+	lines.push("  <description>");
+	for (const line of description.split("\n")) {
+		lines.push(`    ${escapeXml(line)}`);
+	}
+	lines.push("  </description>");
 
 	// Acceptance Criteria
 	const acItems = task.acceptanceCriteriaItems;
@@ -135,19 +148,31 @@ export function formatTaskXml(task: Task): string {
 	// Implementation Plan
 	const implementationPlan = task.implementationPlan?.trim();
 	if (implementationPlan) {
-		lines.push(`  <implementation_plan>${cdata(implementationPlan)}</implementation_plan>`);
+		lines.push("  <implementation_plan>");
+		for (const line of implementationPlan.split("\n")) {
+			lines.push(`    ${escapeXml(line)}`);
+		}
+		lines.push("  </implementation_plan>");
 	}
 
 	// Implementation Notes
 	const implementationNotes = task.implementationNotes?.trim();
 	if (implementationNotes) {
-		lines.push(`  <implementation_notes>${cdata(implementationNotes)}</implementation_notes>`);
+		lines.push("  <implementation_notes>");
+		for (const line of implementationNotes.split("\n")) {
+			lines.push(`    ${escapeXml(line)}`);
+		}
+		lines.push("  </implementation_notes>");
 	}
 
 	// Final Summary
 	const finalSummary = task.finalSummary?.trim();
 	if (finalSummary) {
-		lines.push(`  <final_summary>${cdata(finalSummary)}</final_summary>`);
+		lines.push("  <final_summary>");
+		for (const line of finalSummary.split("\n")) {
+			lines.push(`    ${escapeXml(line)}`);
+		}
+		lines.push("  </final_summary>");
 	}
 
 	lines.push("</task>");
@@ -158,8 +183,11 @@ export function formatTaskXml(task: Task): string {
 export function formatTaskListXml(tasks: Task[], options: { query?: string } = {}): string {
 	const lines: string[] = [];
 
-	const openTag = options.query ? `<tasks query="${escapeXml(options.query)}">` : "<tasks>";
-	lines.push(openTag);
+	lines.push("<tasks>");
+
+	if (options.query) {
+		lines.push(`  <query>${escapeXml(options.query)}</query>`);
+	}
 
 	for (const task of tasks) {
 		lines.push("  <task>");

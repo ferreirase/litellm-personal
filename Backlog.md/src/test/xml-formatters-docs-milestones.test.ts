@@ -35,9 +35,12 @@ describe("formatDocumentXml", () => {
 		expect(xml).not.toContain("<tags>");
 	});
 
-	it("includes content in CDATA block", () => {
+	it("includes content with escaped lines", () => {
 		const xml = formatDocumentXml(makeDocument({ rawContent: "# Hello\n\nSome **markdown**." }));
-		expect(xml).toContain("<content><![CDATA[# Hello\n\nSome **markdown**.]]></content>");
+		expect(xml).toContain("<content>");
+		expect(xml).toContain("# Hello");
+		expect(xml).toContain("Some **markdown**.");
+		expect(xml).not.toContain("<![CDATA[");
 	});
 
 	it("includes updated_date when present", () => {
@@ -64,20 +67,19 @@ describe("formatDocumentXml", () => {
 
 	it("handles empty rawContent", () => {
 		const xml = formatDocumentXml(makeDocument({ rawContent: "" }));
-		expect(xml).toContain("<content><![CDATA[]]></content>");
+		expect(xml).toContain("<content>");
+		expect(xml).toContain("</content>");
 	});
 
 	it("handles undefined rawContent", () => {
 		const xml = formatDocumentXml(makeDocument({ rawContent: undefined }));
-		expect(xml).toContain("<content><![CDATA[]]></content>");
+		expect(xml).toContain("<content>");
+		expect(xml).toContain("</content>");
 	});
 
-	it("CDATA escapes ]]> in content", () => {
-		const xml = formatDocumentXml(makeDocument({ rawContent: "end ]]> here" }));
-		// The ]]> sequence is split as: ]]]]><![CDATA[>
-		expect(xml).toContain("]]]]><![CDATA[>");
-		// Final closing ]]> must only appear at the end of the CDATA block
-		expect(xml).toContain("<content><![CDATA[end ]]]]><![CDATA[> here]]></content>");
+	it("special chars in content are escaped", () => {
+		const xml = formatDocumentXml(makeDocument({ rawContent: "use <div> & continue" }));
+		expect(xml).toContain("&lt;div&gt; &amp; continue");
 	});
 });
 
@@ -98,14 +100,15 @@ describe("formatDocumentListXml", () => {
 		expect(xml).not.toContain("<created_date>");
 	});
 
-	it("wraps root tag with query attribute when query provided", () => {
+	it("wraps root tag with query child element when query provided", () => {
 		const xml = formatDocumentListXml([makeDocument()], { query: "hello world" });
-		expect(xml).toContain('<documents query="hello world">');
+		expect(xml).toContain("<query>hello world</query>");
+		expect(xml).not.toContain('query="hello world"');
 	});
 
-	it("escapes query attribute value", () => {
+	it("escapes query value", () => {
 		const xml = formatDocumentListXml([], { query: 'test "quoted"' });
-		expect(xml).toContain('<documents query="test &quot;quoted&quot;">');
+		expect(xml).toContain('<query>test &quot;quoted&quot;</query>');
 	});
 
 	it("renders multiple documents", () => {
@@ -134,7 +137,9 @@ describe("formatMilestoneListXml", () => {
 
 	it("active milestone includes description when non-empty", () => {
 		const xml = formatMilestoneListXml([makeMilestone({ description: "First release" })], [], []);
-		expect(xml).toContain("<description><![CDATA[First release]]></description>");
+		expect(xml).toContain("<description>");
+		expect(xml).toContain("First release");
+		expect(xml).not.toContain("<![CDATA[");
 	});
 
 	it("omits description when empty string", () => {

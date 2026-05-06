@@ -83,9 +83,12 @@ describe("formatTaskXml", () => {
 		expect(xml).toContain("<milestone>v1.0</milestone>");
 		expect(xml).toContain("<dependency>BACK-10</dependency>");
 		expect(xml).toContain("<dependency>BACK-15</dependency>");
-		expect(xml).toContain('<parent id="BACK-14">Parent task title</parent>');
-		expect(xml).toContain('id="BACK-42.1"');
-		expect(xml).toContain("Subtask one");
+		expect(xml).toContain("<parent>");
+		expect(xml).toContain("<id>BACK-14</id>");
+		expect(xml).toContain("<title>Parent task title</title>");
+		expect(xml).toContain("<subtask>");
+		expect(xml).toContain("<id>BACK-42.1</id>");
+		expect(xml).toContain("<title>Subtask one</title>");
 		expect(xml).toContain("<reference>https://example.com</reference>");
 		expect(xml).toContain("<doc>docs/guide.md</doc>");
 		expect(xml).toContain("OAuth 2.0 support");
@@ -109,25 +112,21 @@ describe("formatTaskXml", () => {
 		expect(xml).toContain("&lt;tag&gt;");
 	});
 
-	it("CDATA content — markdown in description survives without corruption", () => {
+	it("multi-line content — markdown in description survives without corruption", () => {
 		const task = makeTask({
 			description: "# Heading\n\n- item 1\n- item 2\n\n`code` and **bold**",
 		});
 
 		const xml = formatTaskXml(task);
-		expect(xml).toContain("<![CDATA[");
 		expect(xml).toContain("# Heading");
 		expect(xml).toContain("`code` and **bold**");
+		expect(xml).not.toContain("<![CDATA[");
 	});
 
-	it("CDATA edge case — ]]> in content is properly escaped", () => {
-		const task = makeTask({ description: "end of cdata: ]]> marker" });
+	it("description with > characters is escaped", () => {
+		const task = makeTask({ description: "use <button> to submit & continue" });
 		const xml = formatTaskXml(task);
-		// The raw "]]> marker" sequence should not appear unescaped inside CDATA
-		expect(xml).not.toContain("]]> marker");
-		// But the content must still be recoverable
-		expect(xml).toContain("end of cdata");
-		expect(xml).toContain("marker");
+		expect(xml).toContain("&lt;button&gt; to submit &amp; continue");
 	});
 
 	it("assignee normalization — @ prefix added when missing, not doubled", () => {
@@ -138,7 +137,7 @@ describe("formatTaskXml", () => {
 		expect(xml).not.toContain("@@bob");
 	});
 
-	it("subtasks with subtaskSummaries — sorted by ID, id attribute format", () => {
+	it("subtasks with subtaskSummaries — sorted by ID, child elements format", () => {
 		const task = makeTask({
 			subtaskSummaries: [
 				{ id: "TASK-1.10", title: "Tenth" },
@@ -148,9 +147,9 @@ describe("formatTaskXml", () => {
 		});
 
 		const xml = formatTaskXml(task);
-		const idx1 = xml.indexOf('TASK-1.1"');
-		const idx2 = xml.indexOf('TASK-1.2"');
-		const idx10 = xml.indexOf('TASK-1.10"');
+		const idx1 = xml.indexOf("<id>TASK-1.1</id>");
+		const idx2 = xml.indexOf("<id>TASK-1.2</id>");
+		const idx10 = xml.indexOf("<id>TASK-1.10</id>");
 		// Sorted numerically: 1 < 2 < 10
 		expect(idx1).toBeLessThan(idx2);
 		expect(idx2).toBeLessThan(idx10);
@@ -164,8 +163,8 @@ describe("formatTaskXml", () => {
 
 		const xml = formatTaskXml(task);
 		expect(xml).toContain("<subtasks>");
-		expect(xml).toContain('id="TASK-1.1"');
-		expect(xml).toContain('id="TASK-1.2"');
+		expect(xml).toContain("<id>TASK-1.1</id>");
+		expect(xml).toContain("<id>TASK-1.2</id>");
 	});
 
 	it("AC/DoD ordering — sorted by index ascending regardless of input order", () => {
@@ -200,20 +199,24 @@ describe("formatTaskXml", () => {
 		expect(xml).not.toContain("<branch>");
 	});
 
-	it("parent with title — <parent id='...'> contains title text", () => {
+	it("parent with title — <parent> contains id and title child elements", () => {
 		const task = makeTask({
 			parentTaskId: "TASK-10",
 			parentTaskTitle: "The parent task",
 		});
 
 		const xml = formatTaskXml(task);
-		expect(xml).toContain('<parent id="TASK-10">The parent task</parent>');
+		expect(xml).toContain("<parent>");
+		expect(xml).toContain("<id>TASK-10</id>");
+		expect(xml).toContain("<title>The parent task</title>");
 	});
 
-	it("parent without title — <parent id='...'> falls back to ID as text", () => {
+	it("parent without title — falls back to ID as title", () => {
 		const task = makeTask({ parentTaskId: "TASK-10" });
 		const xml = formatTaskXml(task);
-		expect(xml).toContain('<parent id="TASK-10">TASK-10</parent>');
+		expect(xml).toContain("<parent>");
+		expect(xml).toContain("<id>TASK-10</id>");
+		expect(xml).toContain("<title>TASK-10</title>");
 	});
 });
 
@@ -236,13 +239,14 @@ describe("formatTaskListXml", () => {
 		expect(task2Block.slice(0, nextTaskIdx)).not.toContain("<priority>");
 	});
 
-	it("includes query attribute when provided", () => {
+	it("includes query as child element when provided", () => {
 		const xml = formatTaskListXml([makeTask()], { query: "oauth" });
-		expect(xml).toContain('<tasks query="oauth">');
+		expect(xml).toContain("<query>oauth</query>");
+		expect(xml).not.toContain('query="oauth"');
 	});
 
-	it("escapes query attribute value", () => {
+	it("escapes query value", () => {
 		const xml = formatTaskListXml([], { query: 'a&b "test"' });
-		expect(xml).toContain('<tasks query="a&amp;b &quot;test&quot;">');
+		expect(xml).toContain("<query>a&amp;b &quot;test&quot;</query>");
 	});
 });

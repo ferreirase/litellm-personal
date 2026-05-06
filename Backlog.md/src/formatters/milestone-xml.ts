@@ -1,5 +1,5 @@
 import type { Milestone } from "../types/index.ts";
-import { cdata, escapeXml } from "./xml-utils.ts";
+import { escapeXml } from "./xml-utils.ts";
 
 export function formatMilestoneListXml(active: Milestone[], unconfigured: string[], archivedOnTasks: string[]): string {
 	const lines: string[] = [];
@@ -13,7 +13,11 @@ export function formatMilestoneListXml(active: Milestone[], unconfigured: string
 		lines.push(`      <title>${escapeXml(milestone.title)}</title>`);
 		const description = milestone.description?.trim();
 		if (description) {
-			lines.push(`      <description>${cdata(description)}</description>`);
+			lines.push("      <description>");
+			for (const line of description.split("\n")) {
+				lines.push(`        ${escapeXml(line)}`);
+			}
+			lines.push("      </description>");
 		}
 		lines.push("    </milestone>");
 	}

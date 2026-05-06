@@ -1,5 +1,5 @@
 import type { Document } from "../types/index.ts";
-import { cdata, escapeXml } from "./xml-utils.ts";
+import { escapeXml } from "./xml-utils.ts";
 
 export function formatDocumentXml(document: Document): string {
 	const lines: string[] = [];
@@ -23,7 +23,11 @@ export function formatDocumentXml(document: Document): string {
 	}
 
 	const content = document.rawContent?.trim() ?? "";
-	lines.push(`  <content>${cdata(content)}</content>`);
+	lines.push("  <content>");
+	for (const line of content.split("\n")) {
+		lines.push(`    ${escapeXml(line)}`);
+	}
+	lines.push("  </content>");
 
 	lines.push("</document>");
 
@@ -33,8 +37,11 @@ export function formatDocumentXml(document: Document): string {
 export function formatDocumentListXml(documents: Document[], options: { query?: string } = {}): string {
 	const lines: string[] = [];
 
-	const openTag = options.query ? `<documents query="${escapeXml(options.query)}">` : "<documents>";
-	lines.push(openTag);
+	lines.push("<documents>");
+
+	if (options.query) {
+		lines.push(`  <query>${escapeXml(options.query)}</query>`);
+	}
 
 	for (const document of documents) {
 		lines.push("  <document>");
